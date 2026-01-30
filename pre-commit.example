@@ -1,0 +1,24 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "🏗️  Ejecutando Architect Linter..."
+
+# Cambia esta ruta a donde tengas el .exe de tu linter
+# Ejemplo para Windows:
+# "C:/Users/TuUsuario/Projects/architect-linter/target/release/architect-linter.exe" --path .
+#
+# Ejemplo para Linux/Mac:
+# "/home/tuusuario/projects/architect-linter/target/release/architect-linter" --path .
+
+"C:/Ruta/A/Tu/Proyecto/Rust/target/release/architect-linter.exe" --path .
+
+# Si el linter encuentra errores, el commit se cancelará
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ El commit fue cancelado debido a violaciones de arquitectura"
+  echo "💡 Corrige los errores reportados arriba y vuelve a intentar el commit"
+  exit 1
+fi
+
+echo "✅ Validación de arquitectura exitosa"
+exit 0

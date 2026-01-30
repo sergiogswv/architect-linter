@@ -1,0 +1,20 @@
+{
+  "max_lines_per_function": 40,
+  "forbidden_imports": [
+    {
+      "file_pattern": ".controller.ts",
+      "prohibited": ".repository",
+      "reason": "Los controladores deben usar servicios, no repositorios directamente"
+    },
+    {
+      "file_pattern": ".service.ts",
+      "prohibited": ".controller",
+      "reason": "Los servicios no deben depender de controladores"
+    },
+    {
+      "file_pattern": ".component.tsx",
+      "prohibited": ".repository",
+      "reason": "Los componentes no deben acceder a la capa de datos directamente"
+    }
+  ]
+}
