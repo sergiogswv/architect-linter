@@ -5,6 +5,43 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
+## [0.7.0] - 2026-01-30
+
+### Agregado
+- **Motor de Reglas Dinámicas**: Sistema completamente funcional de `forbidden_imports` con formato `from` → `to`
+- **Detección Automática de Framework**: Nuevo módulo `detector.rs` que reconoce NestJS, React, Angular, Express
+- **Configuración Interactiva**: Modo guiado en primera ejecución que:
+  - Detecta el framework del proyecto
+  - Sugiere patrón arquitectónico (Hexagonal, Clean, MVC)
+  - Propone límite de líneas basado en el framework
+  - Genera `architect.json` automáticamente
+- **Soporte para Patrones Arquitectónicos**:
+  - Hexagonal
+  - Clean Architecture
+  - MVC
+  - Ninguno (sin patrón específico)
+- Documentación completa del motor de reglas dinámicas con ejemplos por patrón
+- Tabla comparativa de restricciones por arquitectura
+- Sugerencias LOC específicas por framework
+
+### Corregido
+- **Error de compilación**: Campo faltante `forbidden_imports` en `LinterContext` (líneas 97 y 162 de main.rs)
+- Eliminada función duplicada `load_config` no utilizada
+- Todas las advertencias del compilador (warnings) eliminadas
+- Formato de `architect.json` corregido en documentación (`from`/`to` en lugar de `file_pattern`/`prohibited`)
+
+### Mejorado
+- Función `setup_or_load_config` ahora maneja ambos modos: automático (con archivo existente) y configuración interactiva
+- Carga dinámica de `forbidden_imports` desde JSON
+- Validación de reglas más robusta con conversión a minúsculas
+- Documentación completamente actualizada y sin duplicaciones
+
+### Técnico
+- Módulo `detector.rs` con funciones `detect_framework()` y `get_loc_suggestion()`
+- Estructura `ForbiddenRule` con campos `from` y `to`
+- `LinterContext` ahora incluye `forbidden_imports: Vec<ForbiddenRule>`
+- Deserialización mejorada del JSON con manejo de arrays
+
 ## [0.6.0] - 2026-01-30
 
 ### Refactorizado
@@ -82,6 +119,7 @@ y este proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 - SourceMap para ubicación precisa de errores
 - Filtrado inteligente de directorios durante el walkdir
 
+[0.7.0]: https://github.com/sergio/architect-linter/releases/tag/v0.7.0
 [0.6.0]: https://github.com/sergio/architect-linter/releases/tag/v0.6.0
 [0.5.0]: https://github.com/sergio/architect-linter/releases/tag/v0.5.0
 [0.1.0]: https://github.com/sergio/architect-linter/releases/tag/v0.1.0

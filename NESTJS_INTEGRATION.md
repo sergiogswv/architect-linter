@@ -8,23 +8,33 @@ Esta guía te ayudará a integrar Architect Linter en tu proyecto NestJS para va
 - Git inicializado en tu proyecto NestJS
 - Architect Linter compilado (ver [README.md](README.md))
 
-## Paso 1: Crear archivo de configuración
+## Paso 1: Ejecutar el linter por primera vez
 
-En la **raíz de tu proyecto NestJS**, crea un archivo llamado `architect.json`:
+En la **raíz de tu proyecto NestJS**, ejecuta el linter:
+
+```bash
+# Ruta al ejecutable compilado
+/ruta/al/architect-linter/target/release/architect-linter .
+```
+
+Si no existe `architect.json`, el linter entrará en **modo interactivo** y:
+1. Detectará que es un proyecto NestJS
+2. Te preguntará qué patrón arquitectónico prefieres
+3. Sugerirá un límite de líneas (40 para NestJS)
+4. Creará el archivo `architect.json` automáticamente
+
+### Configuración Manual (Opcional)
+
+Si prefieres crear el archivo manualmente, usa este formato:
 
 ```json
 {
   "max_lines_per_function": 40,
+  "architecture_pattern": "MVC",
   "forbidden_imports": [
     {
-      "file_pattern": ".controller.ts",
-      "prohibited": ".repository",
-      "reason": "Los controladores deben usar servicios, no repositorios directamente"
-    },
-    {
-      "file_pattern": ".service.ts",
-      "prohibited": ".controller",
-      "reason": "Los servicios no deben depender de controladores"
+      "from": ".controller.ts",
+      "to": ".repository"
     }
   ]
 }
@@ -35,37 +45,56 @@ En la **raíz de tu proyecto NestJS**, crea un archivo llamado `architect.json`:
 ```json
 {
   "max_lines_per_function": 40,
+  "architecture_pattern": "MVC",
   "forbidden_imports": [
     {
-      "file_pattern": ".controller.ts",
-      "prohibited": ".repository",
-      "reason": "Controladores → Servicios (no Repositorios directamente)"
+      "from": ".controller.ts",
+      "to": ".repository"
     },
     {
-      "file_pattern": ".controller.ts",
-      "prohibited": ".entity",
-      "reason": "Controladores no deben importar entidades directamente"
+      "from": ".controller.ts",
+      "to": ".entity"
     },
     {
-      "file_pattern": ".service.ts",
-      "prohibited": ".controller",
-      "reason": "Servicios no deben depender de controladores"
+      "from": ".service.ts",
+      "to": ".controller"
     },
     {
-      "file_pattern": ".repository.ts",
-      "prohibited": ".controller",
-      "reason": "Repositorios no deben conocer la capa de controladores"
+      "from": ".repository.ts",
+      "to": ".controller"
     },
     {
-      "file_pattern": ".repository.ts",
-      "prohibited": ".service",
-      "reason": "Repositorios no deben depender de servicios"
+      "from": ".repository.ts",
+      "to": ".service"
     }
   ]
 }
 ```
 
-## Paso 2: Instalar y configurar Husky
+**Nota**: Las propiedades `from` y `to` buscan coincidencias en las rutas de archivos. Por ejemplo, `".controller.ts"` coincide con cualquier archivo que contenga ese texto en su ruta.
+
+## Paso 2: Ajustar las reglas (si es necesario)
+
+Revisa el archivo `architect.json` generado y ajusta las reglas según las necesidades de tu proyecto:
+
+```json
+{
+  "max_lines_per_function": 40,
+  "architecture_pattern": "Hexagonal",
+  "forbidden_imports": [
+    {
+      "from": "/domain/",
+      "to": "/infrastructure/"
+    },
+    {
+      "from": "/application/",
+      "to": "/infrastructure/"
+    }
+  ]
+}
+```
+
+## Paso 3: Instalar y configurar Husky
 
 En la raíz de tu proyecto NestJS, ejecuta:
 
@@ -78,7 +107,7 @@ Esto creará:
 - Hook `.husky/pre-commit` básico
 - Script en `package.json` para preparar Husky
 
-## Paso 3: Configurar el Hook pre-commit
+## Paso 4: Configurar el Hook pre-commit
 
 Edita el archivo `.husky/pre-commit` en tu proyecto NestJS:
 
@@ -130,7 +159,7 @@ Si usas Git Bash en Windows, asegúrate de usar rutas con formato Unix:
 "/home/sergio/projects/architect-linter/target/release/architect-linter" --path .
 ```
 
-## Paso 4: Dar permisos de ejecución
+## Paso 5: Dar permisos de ejecución
 
 ### En Linux/Mac:
 
@@ -141,7 +170,7 @@ chmod +x .husky/pre-commit
 ### En Windows:
 No es necesario, Git Bash manejará los permisos automáticamente.
 
-## Paso 5: Probar la integración
+## Paso 6: Probar la integración
 
 Intenta hacer un commit para verificar que todo funciona:
 

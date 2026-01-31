@@ -1,9 +1,9 @@
 [package]
 name = "architect-linter"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2021"
 authors = ["Sergio"]
-description = "Un linter de arquitectura de software para proyectos TypeScript"
+description = "Linter de arquitectura con motor de reglas dinámicas para proyectos TypeScript"
 license = "MIT"
 repository = "https://github.com/sergio/architect-linter"
 keywords = ["linter", "architecture", "typescript", "code-quality"]

@@ -1,143 +1,170 @@
 # Architect Linter
 
-**Versión:** 0.6.0
+**Versión:** 0.7.0
 
-Un linter de arquitectura de software escrito en Rust que valida reglas arquitectónicas en proyectos TypeScript, ayudando a mantener la separación de responsabilidades y las mejores prácticas de diseño.
+Un linter de arquitectura de software escrito en Rust que valida reglas arquitectónicas en proyectos TypeScript mediante un motor de reglas dinámicas. Asegura que el diseño del software (Hexagonal, Clean, MVC, etc.) se respete sin importar quién escriba el código.
 
 ## Características
 
-- **Validación de Importaciones Prohibidas**: Detecta y reporta importaciones que violan las reglas de arquitectura definidas
-- **Control de Complejidad**: Valida que las funciones no excedan un límite máximo de líneas
-- **Procesamiento Paralelo**: Análisis rápido utilizando procesamiento multi-hilo con Rayon
-- **Reportes Visuales**: Errores detallados y coloridos utilizando Miette para fácil identificación de problemas
-- **Interfaz Interactiva**: Selección de proyectos mediante menú interactivo
+- **Motor de Reglas Dinámicas**: Define restricciones personalizadas entre capas mediante `architect.json`
+- **Detección Automática de Framework**: Reconoce NestJS, React, Angular, Express y sugiere configuraciones óptimas
+- **Patrones Arquitectónicos**: Soporte para Hexagonal, Clean Architecture, MVC y más
+- **Validación de Importaciones**: Detecta y bloquea importaciones que violan la arquitectura definida
+- **Control de Complejidad**: Valida que las funciones no excedan límites configurables de líneas
+- **Procesamiento Paralelo**: Análisis ultrarrápido usando procesamiento multi-hilo con Rayon
+- **Reportes Visuales**: Errores detallados y coloridos con ubicación exacta del problema
+- **Modo Interactivo**: Configuración guiada en primera ejecución
 - **Integración con Git Hooks**: Compatible con Husky para validación pre-commit automática
 
-## Guía Rápida para Proyectos NestJS
+## Inicio Rápido
 
-### 1. Instalar el Linter
+### 1. Compilar el Linter
 ```bash
-# Clonar el repositorio del linter
 git clone https://github.com/sergio/architect-linter.git
 cd architect-linter
-
-# Compilar el proyecto
 cargo build --release
 ```
 
-### 2. Configurar tu Proyecto NestJS
+### 2. Ejecutar en tu Proyecto
 ```bash
-# En la raíz de tu proyecto NestJS
-cd /ruta/a/tu/proyecto-nestjs
+# Primera ejecución: Modo interactivo de configuración
+./target/release/architect-linter
 
-# Crear archivo de configuración
-cat > architect.json << 'EOF'
-{
-  "max_lines_per_function": 40,
-  "forbidden_imports": [
-    {
-      "file_pattern": ".controller.ts",
-      "prohibited": ".repository"
-    }
-  ]
-}
-EOF
-
-# Instalar Husky
-npx husky-init && npm install
+# O especificar ruta directamente
+./target/release/architect-linter /ruta/a/tu/proyecto
 ```
 
-### 3. Configurar el Hook pre-commit
+La primera vez que ejecutes el linter en un proyecto, detectará automáticamente el framework y te guiará para crear el archivo `architect.json` con reglas recomendadas.
+
+### 3. Integración con Git Hooks (Opcional)
 ```bash
-# Editar .husky/pre-commit con la ruta a tu linter
+# En tu proyecto
+npx husky-init && npm install
+
+# Editar .husky/pre-commit
 echo '#!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
-
 echo "🏗️  Ejecutando Architect Linter..."
-"C:/Ruta/A/architect-linter/target/release/architect-linter.exe" --path .
-
-if [ $? -ne 0 ]; then
-  echo "❌ El commit fue cancelado debido a violaciones de arquitectura"
-  exit 1
-fi' > .husky/pre-commit
-
-# Dar permisos (Linux/Mac)
-chmod +x .husky/pre-commit
+"/ruta/architect-linter/target/release/architect-linter" --path .
+' > .husky/pre-commit
 ```
 
-### 4. Probar
-```bash
-# Hacer un commit para probar el linter
-git add .
-git commit -m "test: verificar architect-linter"
-```
+📖 **Guía completa de integración**: [NESTJS_INTEGRATION.md](NESTJS_INTEGRATION.md)
 
-## Requisitos
+## Motor de Reglas Dinámicas
 
-- Rust 1.70 o superior
-- Proyecto TypeScript a analizar
+El architect-linter utiliza un sistema de reglas dinámicas definidas en `architect.json` que permiten restringir qué carpetas pueden interactuar entre sí, asegurando que el diseño arquitectónico se respete.
 
-## Instalación
+### Concepto
 
-```bash
-cargo build --release
-```
+Una regla prohibida define una relación **Origen (from)** → **Destino (to)**:
+- Si un archivo ubicado en la ruta **"Origen"** intenta importar algo de la ruta **"Destino"**, el linter generará un error de arquitectura.
 
-El ejecutable se generará en `target/release/architect-linter`
-
-## Configuración
-
-### Archivo architect.json
-
-Para que el linter funcione correctamente, **debe existir un archivo `architect.json` en la raíz del proyecto que se va a validar** con la siguiente estructura:
+### Estructura en architect.json
 
 ```json
 {
   "max_lines_per_function": 40,
+  "architecture_pattern": "Hexagonal",
   "forbidden_imports": [
     {
-      "file_pattern": ".controller.ts",
-      "prohibited": ".repository"
+      "from": "/domain/",
+      "to": "/infrastructure/"
     }
   ]
 }
 ```
 
-#### Propiedades de Configuración
+#### Propiedades
 
-##### `max_lines_per_function`
-- **Tipo**: `number`
-- **Descripción**: Número máximo de líneas permitidas por función
-- **Ejemplo**: `40` - Las funciones no deben exceder 40 líneas
+- **`max_lines_per_function`** (número): Límite de líneas por método/función
+- **`architecture_pattern`** (string): Patrón arquitectónico (`"Hexagonal"`, `"Clean"`, `"MVC"`, `"Ninguno"`)
+- **`forbidden_imports`** (array): Lista de reglas con:
+  - **`from`**: Patrón de carpeta/archivo donde se aplica la restricción
+  - **`to`**: Patrón de carpeta/archivo prohibido importar
 
-##### `forbidden_imports`
-- **Tipo**: `array` de objetos
-- **Descripción**: Lista de reglas que definen qué archivos no pueden importar ciertos módulos
+### Cómo Funciona el Motor
 
-Cada regla contiene:
-- `file_pattern`: Patrón que identifica el tipo de archivo (ej. `.controller.ts`)
-- `prohibited`: Patrón de módulo prohibido para ese tipo de archivo (ej. `.repository`)
+1. **Escaneo**: Convierte todas las rutas a minúsculas para evitar errores de mayúsculas
+2. **Match**: Por cada archivo, verifica si su ruta contiene el texto definido en `from`
+3. **Validación**: Si hay coincidencia, analiza cada `import`. Si el origen del import contiene `to`, dispara una violación
 
-#### Ejemplo de Configuración Completa
+### Casos de Uso Comunes
+
+#### A. Arquitectura Hexagonal (Preservar el Core)
+
+Evita que la lógica de negocio dependa de detalles de implementación (Base de datos, APIs externas).
+
+```json
+{
+  "from": "/domain/",
+  "to": "/infrastructure/"
+}
+```
+
+**Resultado**: Si intentas importar un TypeORM Repository dentro de una Entity de dominio, el linter bloqueará el commit.
+
+#### B. Desacoplamiento de Capas (NestJS/MVC)
+
+Evita que los Controladores se salten la capa de servicio.
+
+```json
+{
+  "from": ".controller.ts",
+  "to": ".repository"
+}
+```
+
+**Resultado**: Obliga a inyectar un Service en lugar de consultar la base de datos directamente desde el entry point.
+
+## Guía de Reglas por Patrón Arquitectónico
+
+### Tabla Comparativa de Restricciones
+
+| Patrón | Capa Origen (`from`) | Carpeta Prohibida (`to`) | Razón Técnica |
+|--------|---------------------|--------------------------|---------------|
+| **Hexagonal** | `/domain/` | `/infrastructure/` | El núcleo no debe conocer la base de datos o APIs externas |
+| **Hexagonal** | `/domain/` | `/application/` | El dominio no debe depender de casos de uso específicos |
+| **Clean** | `/entities/` | `/use-cases/` | Las reglas de negocio de alto nivel no deben conocer la orquestación |
+| **Clean** | `/use-cases/` | `/controllers/` | La lógica no debe saber quién la llama (web, CLI, etc.) |
+| **MVC** | `.controller.ts` | `.repository` | Desacoplamiento: El controlador solo habla con servicios |
+| **MVC** | `.service.ts` | `.controller.ts` | Evitar dependencias circulares y mantener lógica pura |
+
+### Ejemplo: Clean Architecture
+
+```json
+{
+  "max_lines_per_function": 35,
+  "architecture_pattern": "Clean",
+  "forbidden_imports": [
+    {
+      "from": "/entities/",
+      "to": "/use-cases/",
+      "reason": "Las entidades son el corazón y deben ser agnósticas a los casos de uso."
+    },
+    {
+      "from": "/use-cases/",
+      "to": "/infrastructure/",
+      "reason": "La lógica de aplicación no debe importar implementaciones directas como TypeORM o Axios."
+    }
+  ]
+}
+```
+
+### Ejemplo: Arquitectura Hexagonal
 
 ```json
 {
   "max_lines_per_function": 40,
+  "architecture_pattern": "Hexagonal",
   "forbidden_imports": [
     {
-      "file_pattern": ".controller.ts",
-      "prohibited": ".repository",
-      "reason": "Los controladores deben usar servicios, no repositorios directamente"
+      "from": "/domain/",
+      "to": "/infrastructure/"
     },
     {
-      "file_pattern": ".service.ts",
-      "prohibited": ".controller",
-      "reason": "Los servicios no deben depender de controladores"
-    },
-    {
-      "file_pattern": ".component.tsx",
-      "prohibited": ".repository",
-      "reason": "Los componentes no deben acceder a la capa de datos directamente"
+      "from": "/application/",
+      "to": "/infrastructure/"
     }
   ]
 }
@@ -145,124 +172,81 @@ Cada regla contiene:
 
 ## Uso
 
-1. Ejecuta el linter:
+### Modo Interactivo (Primera Ejecución)
 
 ```bash
 ./target/release/architect-linter
 ```
 
-o durante desarrollo:
+Si no existe `architect.json`, el linter:
+1. Detecta automáticamente el framework (NestJS, React, Angular, Express)
+2. Sugiere un patrón arquitectónico
+3. Propone un límite de líneas basado en el framework detectado
+4. Crea el archivo `architect.json` con la configuración seleccionada
+
+### Modo Automático (Ejecuciones Posteriores)
+
+Cuando ya existe `architect.json`, el linter ejecuta silenciosamente:
 
 ```bash
-cargo run
+./target/release/architect-linter /ruta/al/proyecto
 ```
 
-2. Selecciona el proyecto a analizar del menú interactivo, o ingresa la ruta manualmente
-
-3. El linter escaneará todos los archivos `.ts` del proyecto y reportará:
-   - Importaciones que violan las reglas de arquitectura definidas en `architect.json`
-   - Funciones que exceden el límite de líneas configurado
-
-### Uso con Argumentos CLI
-
-El linter también acepta argumentos de línea de comandos:
+o
 
 ```bash
-./target/release/architect-linter --path /ruta/al/proyecto
+cargo run -- /ruta/al/proyecto
 ```
 
-Opciones disponibles:
-- `--path <RUTA>`: Especifica la ruta del proyecto a analizar (evita el menú interactivo)
+### Argumentos CLI
 
-## Integración con Git Hooks (Husky)
+- **Sin argumentos**: Modo interactivo, muestra menú de proyectos disponibles
+- **Con ruta**: `./architect-linter /ruta/proyecto` - Analiza el proyecto especificado
 
-Para ejecutar automáticamente el linter antes de cada commit en tu proyecto NestJS, puedes integrarlo con Husky.
+## Integración con Git Hooks
 
-📖 **Para instrucciones detalladas y solución de problemas, consulta: [NESTJS_INTEGRATION.md](NESTJS_INTEGRATION.md)**
-
-### Resumen de Integración
-
-### 1. Instalar Husky en tu proyecto NestJS
-
-En la raíz de tu proyecto NestJS, ejecuta:
+📖 **Guía completa**: [NESTJS_INTEGRATION.md](NESTJS_INTEGRATION.md)
 
 ```bash
+# En tu proyecto
 npx husky-init && npm install
-```
 
-Esto creará la carpeta `.husky` con la configuración inicial.
-
-### 2. Configurar el Hook pre-commit
-
-Abre el archivo `.husky/pre-commit` que se creó en tu proyecto NestJS y cámbialo para que llame a tu ejecutable de Rust.
-
-Puedes usar el archivo `pre-commit.example` incluido en este repositorio como plantilla:
-
-```bash
-#!/bin/sh
+# Editar .husky/pre-commit
+echo '#!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
+"/ruta/architect-linter/target/release/architect-linter" --path .
+' > .husky/pre-commit
 
-echo "🏗️  Ejecutando Architect Linter..."
-# Cambia esta ruta a donde tengas el .exe de tu linter
-"C:/Ruta/A/Tu/Proyecto/Rust/target/release/architect-linter.exe" --path .
-
-# Si el linter encuentra errores, el commit se cancelará
-if [ $? -ne 0 ]; then
-  echo "❌ El commit fue cancelado debido a violaciones de arquitectura"
-  exit 1
-fi
-```
-
-### 3. Dar permisos de ejecución (Linux/Mac)
-
-```bash
 chmod +x .husky/pre-commit
-```
-
-### 4. Probar la integración
-
-Intenta hacer un commit en tu proyecto NestJS. El linter se ejecutará automáticamente y:
-- ✅ Si no hay violaciones, el commit continuará normalmente
-- ❌ Si hay violaciones, el commit será cancelado y verás los errores
-
-### Ejemplo de flujo con Husky
-
-```bash
-git add .
-git commit -m "feat: add new user endpoint"
-
-# Salida:
-🏗️  Ejecutando Architect Linter...
-🏛️  WELCOME TO ARCHITECT-LINTER
-🚀 Analizando 145 archivos en "my-nestjs-project"...
-
-📌 Archivo: src/controllers/user.controller.ts
-  × Violación de Arquitectura: Importación Prohibida
-  ...
-
-❌ El commit fue cancelado debido a violaciones de arquitectura
 ```
 
 ## Ejemplo de Salida
 
+### Primera Ejecución (Modo Configuración)
 ```
 🏛️  WELCOME TO ARCHITECT-LINTER
-? Selecciona el proyecto a auditar › my-backend-project
-🚀 Analizando 145 archivos en "my-backend-project"...
+📝 No encontré 'architect.json'. Vamos a configurar tu proyecto.
+? Confirmar Framework (Detectado: NestJS) › NestJS
+? ¿Qué patrón arquitectónico quieres aplicar? › Hexagonal
+? Límite de líneas por método › 40
+✅ Configuración guardada en 'architect.json'
+```
 
-📌 Archivo: src/controllers/user.controller.ts
-  × Violación de Arquitectura: Importación Prohibida
-   ╭─[src/controllers/user.controller.ts:3:1]
+### Ejecuciones Posteriores (Modo Automático)
+```
+🏛️  WELCOME TO ARCHITECT-LINTER
+
+📌 Violación en: src/domain/user.entity.ts
+
+  × Violación de Arquitectura
+   ╭─[src/domain/user.entity.ts:3:1]
    │
- 3 │ import { UserRepository } from '../repositories/user.repository'
-   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   │ Este import de repositorio no está permitido aquí
+ 3 │ import { Repository } from 'typeorm';
+   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │ Restricción: Archivos en '/domain/' no pueden importar de '/infrastructure/'.
    ╰────
-  help: Los controladores (Controllers) deben usar Servicios, nunca Repositorios directamente.
 
-⚠️  [COMPLEJIDAD] Función 'processUserData' es muy larga: 52 líneas (Máximo: 40)
-
-✓ Análisis completado
+❌ Se encontraron 1 violaciones.
 ```
 
 ## Estructura del Proyecto
@@ -270,76 +254,63 @@ git commit -m "feat: add new user endpoint"
 ```
 architect-linter/
 ├── src/
-│   ├── main.rs                 # Punto de entrada y orquestación principal
-│   ├── analyzer.rs             # Lógica de análisis de archivos TypeScript
-│   └── config.rs               # Configuración y tipos de error
-├── Cargo.toml                  # Configuración de dependencias
-├── Cargo.lock                  # Lock de versiones
-├── README.md                   # Documentación principal
-├── CHANGELOG.md                # Registro de cambios
-├── NESTJS_INTEGRATION.md       # Guía detallada de integración con NestJS
-├── architect.json.example      # Ejemplo de configuración
-└── pre-commit.example          # Ejemplo de hook para Husky
+│   ├── main.rs                 # Orquestación, configuración interactiva, recolección de archivos
+│   ├── analyzer.rs             # Análisis de TypeScript, validación de reglas dinámicas
+│   ├── config.rs               # Tipos: LinterContext, ArchPattern, Framework, ForbiddenRule
+│   └── detector.rs             # Detección de framework y sugerencias LOC
+├── Cargo.toml                  # Dependencias y configuración del proyecto
+├── README.md                   # Esta documentación
+├── CHANGELOG.md                # Historial de versiones
+├── NESTJS_INTEGRATION.md       # Guía de integración con Git Hooks
+└── pre-commit.example          # Plantilla para Husky
 ```
 
-## Dependencias Principales
+## Tecnologías
 
-- **swc_ecma_parser**: Parser de TypeScript/JavaScript
-- **rayon**: Procesamiento paralelo
-- **miette**: Reportes de error elegantes
-- **walkdir**: Traversal de directorios
-- **dialoguer**: Interfaz interactiva de usuario
+- **swc_ecma_parser**: Parser de TypeScript/JavaScript de alto rendimiento
+- **rayon**: Procesamiento paralelo automático
+- **miette**: Reportes de diagnóstico elegantes con contexto
+- **walkdir**: Traversal eficiente de directorios
+- **dialoguer**: UI interactiva para terminal
 - **indicatif**: Barras de progreso
-- **tokio**: Runtime asíncrono para operaciones async
-- **reqwest**: Cliente HTTP con soporte JSON
-- **async-trait**: Soporte para traits asíncronos
+- **serde_json**: Parseo de configuración JSON
 
-## Reglas de Arquitectura Implementadas
+## Reglas Implementadas
 
-### 1. Separación de Capas
-Los archivos `.controller.ts` no deben importar directamente archivos `.repository`. Deben usar la capa de servicios como intermediario.
-
-**Incorrecto:**
-```typescript
-// user.controller.ts
-import { UserRepository } from '../repositories/user.repository';
-```
-
-**Correcto:**
-```typescript
-// user.controller.ts
-import { UserService } from '../services/user.service';
-```
+### 1. Importaciones Prohibidas (Dinámicas)
+Definidas en `architect.json` con el formato `from` → `to`. El motor valida cada `import` contra las reglas configuradas.
 
 ### 2. Complejidad de Funciones
-Las funciones no deben exceder el límite configurado en `max_lines_per_function` para mantener la legibilidad y facilitar el mantenimiento.
+Cuenta las líneas de cada método/función y alerta si excede `max_lines_per_function`.
+
+### 3. Regla Extra: Controller → Repository (NestJS)
+Prohibición hardcoded: archivos que contienen `"controller"` no pueden importar `".repository"`, reforzando el patrón MVC.
 
 ## Roadmap
 
 ### Completado ✅
-- [x] Documentación completa del proyecto
+- [x] Motor de reglas dinámicas con `forbidden_imports`
+- [x] Detección automática de framework (NestJS, React, Angular, Express)
+- [x] Configuración interactiva en primera ejecución
+- [x] Soporte para patrones: Hexagonal, Clean, MVC
+- [x] Procesamiento paralelo con Rayon
 - [x] Integración con Git Hooks (Husky)
-- [x] Soporte para argumentos CLI (--path)
-- [x] Procesamiento paralelo para análisis rápido
-- [x] Refactorización a arquitectura modular
-- [x] Infraestructura async lista para extensiones futuras
+- [x] Arquitectura modular (analyzer, config, detector)
+- [x] Reportes elegantes con Miette
 
-### En Progreso 🚧
-- [ ] Implementación de lectura del archivo `architect.json`
-- [ ] Aplicación dinámica de reglas configurables
-- [ ] Validación de esquema del archivo de configuración
+### Próximamente 🚧
+- [ ] Soporte para JavaScript (.js, .jsx)
+- [ ] Validación de esquema JSON con mensajes de error claros
+- [ ] Exportación de reportes (JSON, HTML, Markdown)
+- [ ] Modo watch para desarrollo continuo
+- [ ] Análisis incremental con caché
 
 ### Futuro 🔮
-- [ ] Más reglas de arquitectura predefinidas
-- [ ] Soporte para JavaScript (.js, .jsx)
-- [ ] Exportación de reportes en JSON/HTML/Markdown
-- [ ] Integración nativa con CI/CD (GitHub Actions, GitLab CI, etc.)
-- [ ] API REST para análisis remoto (usando infraestructura async)
-- [ ] Reglas personalizadas mediante plugins
-- [ ] Caché de resultados para análisis incremental
-- [ ] Modo watch para desarrollo continuo
+- [ ] Reglas personalizadas mediante plugins en Rust/WASM
+- [ ] Integración nativa con CI/CD (GitHub Actions, GitLab CI)
 - [ ] Configuración de severidad por regla (error, warning, info)
-- [ ] Integración con servicios de análisis de código en la nube
+- [ ] Dashboard web para visualizar violaciones históricas
+- [ ] Soporte para más lenguajes (Python, Go, Java)
 
 ## Contribuir
 
@@ -361,21 +332,12 @@ Sergio - [GitHub](https://github.com/sergio)
 
 ## Changelog
 
-### v0.6.0 (2026-01-30)
-- Refactorización a arquitectura modular (analyzer.rs, config.rs)
-- Mejora en organización y mantenibilidad del código
-- Infraestructura async preparada con tokio y reqwest
-- Separación de responsabilidades en módulos dedicados
+Ver [CHANGELOG.md](CHANGELOG.md) para el historial completo de versiones.
 
-### v0.5.0 (2026-01-29)
-- Documentación completa del proyecto
-- Especificación del archivo de configuración `architect.json`
-- Soporte para reglas de importaciones prohibidas configurables
-- Configuración de límite de líneas por función
-
-### v0.1.0
-- Versión inicial
-- Validación de importaciones prohibidas (hardcoded)
-- Detección de funciones largas
-- Procesamiento paralelo
-- Interfaz interactiva
+### v0.7.0 (2026-01-30) - Motor de Reglas Dinámicas
+- ✨ Motor de reglas dinámicas completamente funcional
+- 🔍 Detección automática de framework con módulo `detector.rs`
+- 🎯 Configuración interactiva en primera ejecución
+- 📐 Soporte para patrones arquitectónicos: Hexagonal, Clean, MVC
+- 🛠️ Corrección de errores de compilación y warnings
+- 📚 Documentación actualizada con ejemplos por patrón
