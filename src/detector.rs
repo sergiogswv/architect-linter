@@ -1,9 +1,9 @@
 use crate::config::Framework;
 use std::fs;
-use std::path::PathBuf;
+use std::path::Path;
 
 /// Analiza el package.json para determinar el framework del proyecto.
-pub fn detect_framework(root: &PathBuf) -> Framework {
+pub fn detect_framework(root: &Path) -> Framework {
     let pkg_path = root.join("package.json");
 
     // Si no hay package.json, no podemos saber qué es con certeza

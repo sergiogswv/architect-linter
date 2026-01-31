@@ -1,6 +1,6 @@
 # Architect Linter
 
-**Versión:** 0.7.0
+**Versión:** 1.0.0
 
 Un linter de arquitectura de software escrito en Rust que valida reglas arquitectónicas en proyectos TypeScript mediante un motor de reglas dinámicas. Asegura que el diseño del software (Hexagonal, Clean, MVC, etc.) se respete sin importar quién escriba el código.
 
@@ -18,35 +18,121 @@ Un linter de arquitectura de software escrito en Rust que valida reglas arquitec
 
 ## Inicio Rápido
 
-### 1. Compilar el Linter
+### Opción 1: Instalación Global (Recomendado)
+
+La instalación global te permite ejecutar `architect-linter` desde cualquier directorio.
+
+#### Linux / macOS
+```bash
+git clone https://github.com/sergio/architect-linter.git
+cd architect-linter
+chmod +x install.sh
+./install.sh
+```
+
+#### Windows (PowerShell)
+```powershell
+git clone https://github.com/sergiogswv/architect-linter.git
+cd architect-linter
+
+# Ejecutar el script de instalación (evita errores de políticas de ejecución)
+powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+**Después de la instalación**:
+1. Abre PowerShell como Administrador
+2. Ejecuta los comandos que el script te muestra para agregar al PATH
+3. **Cierra TODAS las terminales** y abre una nueva
+4. Verifica: `architect-linter --version`
+
+📖 **Guía completa para Windows con solución de problemas**: [INSTALL_WINDOWS.md](INSTALL_WINDOWS.md)
+
+Los scripts automáticamente:
+1. Compilan el proyecto en modo release
+2. Mueven el binario a una ubicación global (`/usr/local/bin` en Linux/macOS, `%USERPROFILE%\bin` en Windows)
+3. Configuran el PATH para que puedas usar `architect-linter` desde cualquier lugar
+
+### Opción 2: Compilación Manual
+
+#### Linux / macOS
 ```bash
 git clone https://github.com/sergio/architect-linter.git
 cd architect-linter
 cargo build --release
+
+# Mover a una carpeta en tu PATH
+sudo cp target/release/architect-linter /usr/local/bin/
 ```
 
-### 2. Ejecutar en tu Proyecto
-```bash
-# Primera ejecución: Modo interactivo de configuración
-./target/release/architect-linter
+#### Windows (Instalación Manual)
+```powershell
+git clone https://github.com/sergio/architect-linter.git
+cd architect-linter
+cargo build --release
 
-# O especificar ruta directamente
+# Crear carpeta bin si no existe
+mkdir $env:USERPROFILE\bin -Force
+
+# Copiar el binario
+copy target\release\architect-linter.exe $env:USERPROFILE\bin\
+
+# Agregar al PATH (ejecutar PowerShell como administrador)
+$oldPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+$newPath = "$oldPath;$env:USERPROFILE\bin"
+[Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
+
+# Reinicia tu terminal para que los cambios surtan efecto
+```
+
+### Primer Uso
+
+```bash
+# Si instalaste globalmente
+architect-linter /ruta/a/tu/proyecto
+
+# O si usas el binario local
 ./target/release/architect-linter /ruta/a/tu/proyecto
+
+# Modo interactivo (te muestra proyectos disponibles)
+architect-linter
 ```
 
-La primera vez que ejecutes el linter en un proyecto, detectará automáticamente el framework y te guiará para crear el archivo `architect.json` con reglas recomendadas.
+**Primera ejecución**: Si no existe `architect.json`, el linter detectará automáticamente tu framework y te guiará con un wizard interactivo para configurar las reglas arquitectónicas.
 
-### 3. Integración con Git Hooks (Opcional)
+### Integración con Git Hooks (Recomendado)
+
+Valida la arquitectura automáticamente antes de cada commit usando Husky.
+
+#### Paso 1: Instalar Husky en tu proyecto
 ```bash
-# En tu proyecto
+cd /ruta/a/tu/proyecto
 npx husky-init && npm install
+```
 
-# Editar .husky/pre-commit
-echo '#!/bin/sh
+#### Paso 2: Configurar el Pre-Commit Hook
+
+**Opción A: Con instalación global (Recomendado)**
+```bash
+#!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
-echo "🏗️  Ejecutando Architect Linter..."
-"/ruta/architect-linter/target/release/architect-linter" --path .
-' > .husky/pre-commit
+
+echo "🏗️  Validando arquitectura antes del commit..."
+architect-linter .
+```
+
+**Opción B: Con ruta específica**
+```bash
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "🏗️  Validando arquitectura antes del commit..."
+"/ruta/completa/architect-linter/target/release/architect-linter" .
+```
+
+Edita el archivo `.husky/pre-commit` con el contenido de tu preferencia y dale permisos de ejecución:
+
+```bash
+chmod +x .husky/pre-commit
 ```
 
 📖 **Guía completa de integración**: [NESTJS_INTEGRATION.md](NESTJS_INTEGRATION.md)
@@ -200,25 +286,68 @@ cargo run -- /ruta/al/proyecto
 
 ### Argumentos CLI
 
-- **Sin argumentos**: Modo interactivo, muestra menú de proyectos disponibles
-- **Con ruta**: `./architect-linter /ruta/proyecto` - Analiza el proyecto especificado
-
-## Integración con Git Hooks
-
-📖 **Guía completa**: [NESTJS_INTEGRATION.md](NESTJS_INTEGRATION.md)
-
 ```bash
-# En tu proyecto
-npx husky-init && npm install
-
-# Editar .husky/pre-commit
-echo '#!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
-"/ruta/architect-linter/target/release/architect-linter" --path .
-' > .husky/pre-commit
-
-chmod +x .husky/pre-commit
+architect-linter [OPCIONES] [RUTA]
 ```
+
+**Opciones**:
+- `-v, --version`: Muestra la versión del linter
+- `-h, --help`: Muestra la ayuda completa
+- **Sin argumentos**: Modo interactivo, muestra menú de proyectos disponibles
+- **Con ruta**: `architect-linter /ruta/proyecto` - Analiza el proyecto especificado
+
+**Ejemplos**:
+```bash
+architect-linter --version          # Muestra: architect-linter 1.0.0
+architect-linter --help             # Muestra ayuda completa
+architect-linter                    # Modo interactivo
+architect-linter .                  # Analiza directorio actual
+architect-linter /ruta/proyecto     # Analiza proyecto específico
+```
+
+## El Flujo de Trabajo Completo
+
+### Primera vez usando el linter
+
+1. **Commit inicial**: Al ejecutar `git commit`, Husky lanza el linter automáticamente
+2. **Discovery automático**: Si es la primera vez (no existe `architect.json`), el linter:
+   - Lee tu `package.json` y estructura de carpetas
+   - Detecta el framework (NestJS, React, Angular, Express)
+   - Consulta la IA para sugerir límites de líneas y reglas arquitectónicas
+3. **Configuración guiada**: Te muestra las sugerencias y solicita confirmación
+4. **Persistencia**: Una vez aceptas, crea `architect.json` y valida el código
+5. **Resultado**: Si no hay violaciones, el commit continúa; si las hay, se aborta mostrando los errores
+
+### Ejecuciones posteriores
+
+Una vez existe `architect.json`:
+- El linter carga silenciosamente la configuración
+- Valida el código instantáneamente (gracias a Rust)
+- Muestra violaciones si existen o permite el commit
+
+## FAQ (Preguntas Frecuentes)
+
+### ¿Qué pasa si los tests fallan?
+El commit se aborta automáticamente. Git te mostrará exactamente qué archivo y línea está rompiendo la arquitectura, con contexto visual del error.
+
+### ¿Puedo saltarme el linter en caso de emergencia?
+Sí, puedes usar `git commit --no-verify` para omitir los hooks, pero ¡úsalo con responsabilidad! El Arquitecto Virtual se sentirá decepcionado 😢
+
+### ¿Necesito internet para usar el linter?
+Solo la **primera vez** para que la IA sugiera las reglas (configuración inicial asistida). Una vez creado el `architect.json`, el linter funciona **100% offline** y es instantáneo.
+
+### ¿Funciona con JavaScript además de TypeScript?
+Actualmente solo soporta TypeScript (`.ts`, `.tsx`). El soporte para JavaScript está en el roadmap.
+
+### ¿Cómo actualizo las reglas después de la configuración inicial?
+Simplemente edita el archivo `architect.json` manualmente. El linter cargará automáticamente los cambios en la próxima ejecución.
+
+### ¿Qué variables de entorno necesito para la IA?
+Para la configuración asistida por IA necesitas:
+- `ANTHROPIC_AUTH_TOKEN`: Tu API key de Anthropic
+- `ANTHROPIC_BASE_URL`: URL del endpoint de la API
+
+Si no están configuradas, el linter te lo indicará en la primera ejecución.
 
 ## Ejemplo de Salida
 
@@ -333,6 +462,21 @@ Sergio - [GitHub](https://github.com/sergio)
 ## Changelog
 
 Ver [CHANGELOG.md](CHANGELOG.md) para el historial completo de versiones.
+
+### v1.0.0 (2026-01-31) - Primera Versión Estable
+- 🎉 Primera versión estable lista para producción
+- 🚀 Flags CLI: `--version` y `--help` implementados
+- 📦 Instalación optimizada para Windows con scripts mejorados
+- 📚 Documentación completa de instalación en Windows con solución de problemas
+- ✅ Validación completa en proyectos reales
+
+### v0.8.0 (2026-01-31) - Configuración Asistida por IA
+- 🤖 Integración con Claude (Anthropic API) para sugerencias arquitectónicas inteligentes
+- 🔍 Discovery automático del proyecto con análisis de dependencias y estructura
+- 📦 Scripts de instalación automatizada para Linux/macOS y Windows
+- 💡 Wizard interactivo para confirmación de reglas sugeridas por IA
+- 📚 FAQ completa y documentación del flujo de trabajo
+- 🎯 Módulo UI separado para mejor organización del código
 
 ### v0.7.0 (2026-01-30) - Motor de Reglas Dinámicas
 - ✨ Motor de reglas dinámicas completamente funcional

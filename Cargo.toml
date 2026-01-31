@@ -1,11 +1,11 @@
 [package]
 name = "architect-linter"
-version = "0.7.0"
+version = "1.0.0"
 edition = "2021"
-authors = ["Sergio"]
+authors = ["Sergio Guadarrama"]
 description = "Linter de arquitectura con motor de reglas dinámicas para proyectos TypeScript"
 license = "MIT"
-repository = "https://github.com/sergio/architect-linter"
+repository = "https://github.com/sergiogswv/architect-linter"
 keywords = ["linter", "architecture", "typescript", "code-quality"]
 categories = ["development-tools"]
 
@@ -29,3 +29,4 @@ indicatif = "0.18.0"
 tokio = { version = "1.0", features = ["full"] } # Para manejar peticiones asíncronas
 reqwest = { version = "0.11", features = ["json"] } # Cliente HTTP
 async-trait = "0.1"
+anyhow = "1.0"
