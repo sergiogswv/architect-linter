@@ -457,7 +457,7 @@ Este proyecto está bajo la licencia MIT.
 
 ## Autor
 
-Sergio - [GitHub](https://github.com/sergio)
+Sergio Guadarrama - [GitHub](https://github.com/sergiogswv)
 
 ## Changelog
 
