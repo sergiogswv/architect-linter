@@ -32,6 +32,7 @@ pub fn detect_framework(root: &Path) -> Framework {
 }
 
 /// Sugiere un límite de líneas de código (LOC) basado en el framework detectado.
+#[allow(dead_code)]
 pub fn get_loc_suggestion(framework: &Framework) -> usize {
     match framework {
         Framework::NestJS => 40,  // Métodos de clase

@@ -12,16 +12,17 @@ pub struct ProjectContext {
     pub key_files: Vec<String>,
 }
 
-/// ESTA ES LA FUNCIÓN QUE LE FALTA A TU ARCHIVO
-/// Recolecta todos los archivos .ts que el linter debe analizar.
+/// Recolecta todos los archivos .ts, .tsx, .js, .jsx que el linter debe analizar.
 pub fn collect_files(root: &Path) -> Vec<PathBuf> {
     WalkDir::new(root)
         .into_iter()
         .filter_entry(|e| is_not_ignored(e))
         .filter_map(|e| e.ok())
         .filter(|e| {
-            e.path().extension().map_or(false, |ext| ext == "ts")
-                && !e.path().to_string_lossy().ends_with(".d.ts") // Ignorar definiciones
+            let path_str = e.path().to_string_lossy();
+            e.path().extension().map_or(false, |ext| {
+                ext == "ts" || ext == "tsx" || ext == "js" || ext == "jsx"
+            }) && !path_str.ends_with(".d.ts") // Ignorar definiciones TypeScript
         })
         .map(|e| e.path().to_path_buf())
         .collect()
@@ -99,10 +100,17 @@ fn is_not_ignored(entry: &DirEntry) -> bool {
 fn is_architectural_file(path: &Path) -> bool {
     let s = path.to_string_lossy().to_lowercase();
     s.ends_with(".controller.ts")
+        || s.ends_with(".controller.js")
         || s.ends_with(".service.ts")
+        || s.ends_with(".service.js")
         || s.ends_with(".entity.ts")
+        || s.ends_with(".entity.js")
         || s.ends_with(".repository.ts")
+        || s.ends_with(".repository.js")
         || s.ends_with(".dto.ts")
+        || s.ends_with(".dto.js")
         || s.ends_with(".module.ts")
+        || s.ends_with(".module.js")
         || s.ends_with(".handler.ts")
+        || s.ends_with(".handler.js")
 }

@@ -1,9 +1,131 @@
 # Changelog
 
-Todos los cambios notables en este proyecto serán documentados en este archivo.
+All notable changes to this project will be documented in this file.
 
-El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
-y este proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [2.0.0] - 2026-02-03
+
+### 🎉 Major Release: Architecture & Tooling Improvements
+
+This major version includes significant refactoring, unified setup scripts, and comprehensive JSON schema validation.
+
+### Added
+- **Unified setup scripts**:
+  - Single `setup.sh` and `setup.ps1` scripts that automatically detect installation vs update
+  - Replaces separate install and update scripts
+  - Shows previous version when updating
+  - Improved user experience with clearer messages
+- **Complete JSON schema validation**:
+  - Syntax validation before parsing
+  - Required fields validation with specific messages
+  - Data type validation (number, string, array, object)
+  - Value validation (ranges, valid options)
+  - Duplicate rules detection in `forbidden_imports`
+  - Clear error messages with solution suggestions
+  - Each error includes correct code example
+- **Error documentation**:
+  - `CONFIG_ERRORS.md` with complete guide of common errors
+  - Examples of all possible error types
+  - Step-by-step solutions for each error
+  - Valid configuration examples per framework
+- **Full JavaScript support**:
+  - Analysis of `.js` and `.jsx` files in addition to TypeScript
+  - Automatic parser based on extension (TypeScript vs JavaScript)
+  - JSX support in `.jsx` and `.tsx` files
+  - Decorators enabled in JavaScript
+- **Improved rules engine**:
+  - Smart matching of relative imports (`../services/`, `./api/`)
+  - Alias imports matching (`@/services/`, `@/api/`)
+  - Glob pattern normalization (`src/components/**` → `src/components/`)
+  - Helper functions `normalize_pattern()` and `matches_pattern()`
+- **New CLI module** (`cli.rs`):
+  - Dedicated module for CLI operations
+  - `print_help()`, `print_version()`, `process_args()`
+  - Cleaner separation of concerns
+
+### Changed
+- **Major refactoring of main.rs**:
+  - Reduced from 151 lines to 80 lines (-47%)
+  - Moved `setup_or_load_config()` to `config.rs`
+  - Moved CLI functions to new `cli.rs` module
+  - Cleaner and more maintainable code structure
+- **Scripts consolidation**:
+  - 4 scripts → 2 scripts (install.sh, install.ps1, update.sh, update.ps1 → setup.sh, setup.ps1)
+  - Single command for both installation and updates
+- **Documentation language**:
+  - All documentation translated to English
+  - Code messages remain in Spanish (original language)
+
+### Improved
+- Architectural file detection for JavaScript (`.controller.js`, `.service.js`, etc.)
+- CLI messages updated to mention "TypeScript/JavaScript"
+- More robust and flexible rules validation engine
+- Better Windows path handling with separator normalization
+
+### Fixed
+- Rules engine now correctly detects violations with relative imports
+- Compilation warnings removed with `#[allow(dead_code)]` annotations
+- Glob pattern matching works correctly with actual folder structure
+
+### Documentation
+- README translated to English
+- CHANGELOG translated to English
+- CONFIG_ERRORS documentation in English
+- Spanish preserved for runtime messages
+
+## [1.1.0] - 2026-02-03 (Deprecated)
+
+### 🚀 Soporte Completo para JavaScript/React + Validación Robusta de Configuración
+
+### Agregado
+- **Validación de esquema JSON completa**:
+  - Validación de sintaxis JSON antes de parsear
+  - Validación de campos requeridos con mensajes específicos
+  - Validación de tipos de datos (número, string, array, object)
+  - Validación de valores (rangos, opciones válidas)
+  - Detección de reglas duplicadas en `forbidden_imports`
+  - Mensajes de error claros con sugerencias de solución
+  - Cada error incluye ejemplo de código correcto
+- **Documentación de errores**:
+  - `CONFIG_ERRORS.md` con guía completa de errores comunes
+  - Ejemplos de todos los tipos de errores posibles
+  - Soluciones paso a paso para cada error
+  - Ejemplos de configuraciones válidas por framework
+- **Soporte para archivos JavaScript**:
+  - Análisis de archivos `.js` y `.jsx` además de TypeScript
+  - Parser automático según extensión (TypeScript vs JavaScript)
+  - Soporte para JSX en archivos `.jsx` y `.tsx`
+  - Decoradores habilitados en JavaScript
+- **Motor de reglas mejorado**:
+  - Matching inteligente de imports relativos (`../services/`, `./api/`)
+  - Matching de imports con alias (`@/services/`, `@/api/`)
+  - Normalización de patrones glob (`src/components/**` → `src/components/`)
+  - Funciones helper `normalize_pattern()` y `matches_pattern()`
+- **Scripts de actualización**:
+  - `update.sh` para Linux/macOS
+  - `update.ps1` para Windows
+  - Muestran versión anterior y nueva después de actualizar
+- **Documentación de actualización**:
+  - Sección completa en README sobre cómo actualizar
+  - Instrucciones para actualización automática y manual
+
+### Mejorado
+- Detección de archivos arquitectónicos para JavaScript (`.controller.js`, `.service.js`, etc.)
+- Mensajes del CLI actualizados para mencionar "TypeScript/JavaScript"
+- Motor de validación de reglas más robusto y flexible
+- Mejor manejo de rutas en Windows con normalización de separadores
+
+### Corregido
+- Motor de reglas ahora detecta correctamente violaciones con imports relativos
+- Warnings de compilación eliminados con anotaciones `#[allow(dead_code)]`
+- Matching de patrones glob funciona correctamente con estructura de carpetas real
+
+### Documentación
+- README actualizado con soporte de JavaScript en FAQ
+- Roadmap actualizado moviendo "Soporte JavaScript" a completado
+- Ejemplos de uso para proyectos React con JavaScript
 
 ## [1.0.0] - 2026-01-31
 

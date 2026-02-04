@@ -2,16 +2,29 @@ use crate::config::{ArchError, LinterContext};
 use miette::{IntoDiagnostic, Result, SourceSpan};
 use std::path::PathBuf;
 use swc_common::SourceMap;
-use swc_ecma_parser::{lexer::Lexer, Parser, StringInput, Syntax, TsConfig};
+use swc_ecma_parser::{lexer::Lexer, Parser, StringInput, Syntax, TsConfig, EsConfig};
 
 pub fn analyze_file(cm: &SourceMap, path: &PathBuf, ctx: &LinterContext) -> Result<()> {
     let fm = cm.load_file(path).into_diagnostic()?;
 
-    let lexer = Lexer::new(
-        Syntax::Typescript(TsConfig {
+    // Detectar si es TypeScript o JavaScript según la extensión
+    let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+    let syntax = match extension {
+        "ts" | "tsx" => Syntax::Typescript(TsConfig {
             decorators: true,
+            tsx: extension == "tsx",
             ..Default::default()
         }),
+        "js" | "jsx" => Syntax::Es(EsConfig {
+            decorators: true,
+            jsx: extension == "jsx",
+            ..Default::default()
+        }),
+        _ => Syntax::Typescript(TsConfig::default()),
+    };
+
+    let lexer = Lexer::new(
+        syntax,
         Default::default(),
         StringInput::from(&*fm),
         None,
@@ -32,11 +45,17 @@ pub fn analyze_file(cm: &SourceMap, path: &PathBuf, ctx: &LinterContext) -> Resu
 
             // 1. Validamos las reglas dinámicas del JSON
             for rule in &ctx.forbidden_imports {
-                let from_pattern = rule.from.to_lowercase();
-                let to_pattern = rule.to.to_lowercase();
+                // Normalizar patrones: quitar '**', '*', y '/' al final para matching flexible
+                let from_pattern = normalize_pattern(&rule.from);
+                let to_pattern = normalize_pattern(&rule.to);
 
-                // Si el archivo está en la carpeta 'from' y el import contiene 'to'
-                if file_path_str.contains(&from_pattern) && source.contains(&to_pattern) {
+                // Verificar si el archivo coincide con el patrón 'from'
+                let file_matches = matches_pattern(&file_path_str, &from_pattern);
+
+                // Verificar si el import coincide con el patrón 'to'
+                let import_matches = matches_pattern(&source, &to_pattern);
+
+                if file_matches && import_matches {
                     return Err(create_error(
                         &fm,
                         import.span,
@@ -84,6 +103,67 @@ pub fn analyze_file(cm: &SourceMap, path: &PathBuf, ctx: &LinterContext) -> Resu
         }
     }
     Ok(())
+}
+
+/// Normaliza un patrón glob para hacer matching simple
+/// Ejemplos:
+/// - "src/components/**" → "src/components/"
+/// - "**/*.tsx" → ".tsx"
+/// - "src/services/**" → "src/services/"
+fn normalize_pattern(pattern: &str) -> String {
+    let normalized = pattern
+        .to_lowercase()
+        .replace("\\", "/")  // Normalizar separadores de Windows
+        .replace("**", "")   // Quitar comodines globales
+        .replace("*", "");   // Quitar comodines simples
+
+    // Si el patrón termina en /, dejarlo; si no, mantenerlo como está
+    normalized
+}
+
+/// Verifica si un path coincide con un patrón normalizado
+/// Usa matching flexible para soportar diferentes formatos de import
+fn matches_pattern(path: &str, pattern: &str) -> bool {
+    let normalized_path = path.to_lowercase().replace("\\", "/");
+    let normalized_pattern = pattern.to_lowercase();
+
+    // Si el patrón está vacío después de normalización, no matchear nada
+    if normalized_pattern.is_empty() {
+        return false;
+    }
+
+    // Matching flexible para rutas absolutas y relativas
+    // Ejemplos:
+    // - Path: "c:/proyecto/src/components/button.jsx" con Pattern: "src/components/"
+    // - Import: "../services/userservice" con Pattern: "src/services/"
+    //   → Extraer "services/" del pattern y buscar "/services/" o "../services/" en el import
+    // - Import: "@/api/posts" con Pattern: "src/api/"
+    //   → Buscar "/api/" en el import
+
+    if normalized_path.contains(&normalized_pattern) {
+        return true;
+    }
+
+    // Para imports: si el patrón contiene "src/", extraer solo la carpeta después de src/
+    // Ejemplo: "src/services/" → buscar también "/services/" o "services/"
+    if normalized_pattern.contains("src/") {
+        // Extraer la parte después de "src/"
+        if let Some(folder_part) = normalized_pattern.strip_prefix("src/") {
+            // Buscar "/folder/" o "../folder/" en el path (para imports relativos)
+            let with_slash = format!("/{}", folder_part);
+            let with_relative = format!("../{}", folder_part);
+            let with_at = format!("@/{}", folder_part); // Para alias como @/services
+
+            if normalized_path.contains(&with_slash)
+                || normalized_path.contains(&with_relative)
+                || normalized_path.contains(&with_at)
+                || normalized_path.contains(folder_part) {
+                return true;
+            }
+        }
+    }
+
+    false
 }
 
 fn create_error(fm: &swc_common::SourceFile, span: swc_common::Span, msg: &str) -> miette::Report {

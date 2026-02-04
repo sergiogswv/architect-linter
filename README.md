@@ -1,33 +1,33 @@
 # Architect Linter
 
-**Versión:** 1.0.0
+**Version:** 2.0.0
 
-Un linter de arquitectura de software escrito en Rust que valida reglas arquitectónicas en proyectos TypeScript mediante un motor de reglas dinámicas. Asegura que el diseño del software (Hexagonal, Clean, MVC, etc.) se respete sin importar quién escriba el código.
+A software architecture linter written in Rust that validates architectural rules in TypeScript/JavaScript projects through a dynamic rule engine. It ensures that the software design (Hexagonal, Clean, MVC, etc.) is respected regardless of who writes the code.
 
-## Características
+## Features
 
-- **Motor de Reglas Dinámicas**: Define restricciones personalizadas entre capas mediante `architect.json`
-- **Detección Automática de Framework**: Reconoce NestJS, React, Angular, Express y sugiere configuraciones óptimas
-- **Patrones Arquitectónicos**: Soporte para Hexagonal, Clean Architecture, MVC y más
-- **Validación de Importaciones**: Detecta y bloquea importaciones que violan la arquitectura definida
-- **Control de Complejidad**: Valida que las funciones no excedan límites configurables de líneas
-- **Procesamiento Paralelo**: Análisis ultrarrápido usando procesamiento multi-hilo con Rayon
-- **Reportes Visuales**: Errores detallados y coloridos con ubicación exacta del problema
-- **Modo Interactivo**: Configuración guiada en primera ejecución
-- **Integración con Git Hooks**: Compatible con Husky para validación pre-commit automática
+- **Dynamic Rule Engine**: Define custom constraints between layers via `architect.json`
+- **Automatic Framework Detection**: Recognizes NestJS, React, Angular, Express and suggests optimal configurations
+- **Architectural Patterns**: Support for Hexagonal, Clean Architecture, MVC and more
+- **Import Validation**: Detects and blocks imports that violate the defined architecture
+- **Complexity Control**: Validates that functions don't exceed configurable line limits
+- **Parallel Processing**: Ultra-fast analysis using multi-threaded processing with Rayon
+- **Visual Reports**: Detailed and colorful errors with exact problem location
+- **Interactive Mode**: Guided configuration on first run
+- **Git Hooks Integration**: Compatible with Husky for automatic pre-commit validation
 
-## Inicio Rápido
+## Quick Start
 
-### Opción 1: Instalación Global (Recomendado)
+### Option 1: Global Installation (Recommended)
 
-La instalación global te permite ejecutar `architect-linter` desde cualquier directorio.
+Global installation allows you to run `architect-linter` from any directory.
 
 #### Linux / macOS
 ```bash
 git clone https://github.com/sergio/architect-linter.git
 cd architect-linter
-chmod +x install.sh
-./install.sh
+chmod +x setup.sh
+./setup.sh
 ```
 
 #### Windows (PowerShell)
@@ -35,83 +35,129 @@ chmod +x install.sh
 git clone https://github.com/sergiogswv/architect-linter.git
 cd architect-linter
 
-# Ejecutar el script de instalación (evita errores de políticas de ejecución)
-powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
+# Run the installation script (avoids execution policy errors)
+powershell -NoProfile -ExecutionPolicy Bypass -File .\setup.ps1
 ```
 
-**Después de la instalación**:
-1. Abre PowerShell como Administrador
-2. Ejecuta los comandos que el script te muestra para agregar al PATH
-3. **Cierra TODAS las terminales** y abre una nueva
-4. Verifica: `architect-linter --version`
+**After installation**:
+1. Open PowerShell as Administrator
+2. Run the commands the script shows you to add to PATH
+3. **Close ALL terminals** and open a new one
+4. Verify: `architect-linter --version`
 
-📖 **Guía completa para Windows con solución de problemas**: [INSTALL_WINDOWS.md](INSTALL_WINDOWS.md)
+📖 **Complete Windows guide with troubleshooting**: [INSTALL_WINDOWS.md](INSTALL_WINDOWS.md)
 
-Los scripts automáticamente:
-1. Compilan el proyecto en modo release
-2. Mueven el binario a una ubicación global (`/usr/local/bin` en Linux/macOS, `%USERPROFILE%\bin` en Windows)
-3. Configuran el PATH para que puedas usar `architect-linter` desde cualquier lugar
+The `setup.sh` / `setup.ps1` script automatically:
+1. Detects if it's an initial installation or update
+2. Compiles the project in release mode
+3. Moves the binary to a global location (`/usr/local/bin` on Linux/macOS, `%USERPROFILE%\bin` on Windows)
+4. On installation: Configures PATH if necessary
+5. On update: Shows the old version and the new one
 
-### Opción 2: Compilación Manual
+### Option 2: Manual Compilation
 
 #### Linux / macOS
 ```bash
-git clone https://github.com/sergio/architect-linter.git
+git clone https://github.com/sergiogswv/architect-linter.git
 cd architect-linter
 cargo build --release
 
-# Mover a una carpeta en tu PATH
+# Move to a folder in your PATH
 sudo cp target/release/architect-linter /usr/local/bin/
 ```
 
-#### Windows (Instalación Manual)
+#### Windows (Manual Installation)
 ```powershell
-git clone https://github.com/sergio/architect-linter.git
+git clone https://github.com/sergiogswv/architect-linter.git
 cd architect-linter
 cargo build --release
 
-# Crear carpeta bin si no existe
+# Create bin folder if it doesn't exist
 mkdir $env:USERPROFILE\bin -Force
 
-# Copiar el binario
+# Copy the binary
 copy target\release\architect-linter.exe $env:USERPROFILE\bin\
 
-# Agregar al PATH (ejecutar PowerShell como administrador)
+# Add to PATH (run PowerShell as administrator)
 $oldPath = [Environment]::GetEnvironmentVariable('Path', 'User')
 $newPath = "$oldPath;$env:USERPROFILE\bin"
 [Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
 
-# Reinicia tu terminal para que los cambios surtan efecto
+# Restart your terminal for the changes to take effect
 ```
 
-### Primer Uso
+### First Use
 
 ```bash
-# Si instalaste globalmente
-architect-linter /ruta/a/tu/proyecto
+# If you installed globally
+architect-linter /path/to/your/project
 
-# O si usas el binario local
-./target/release/architect-linter /ruta/a/tu/proyecto
+# Or if you use the local binary
+./target/release/architect-linter /path/to/your/project
 
-# Modo interactivo (te muestra proyectos disponibles)
+# Interactive mode (shows you available projects)
 architect-linter
 ```
 
-**Primera ejecución**: Si no existe `architect.json`, el linter detectará automáticamente tu framework y te guiará con un wizard interactivo para configurar las reglas arquitectónicas.
+**First run**: If `architect.json` doesn't exist, the linter will automatically detect your framework and guide you with an interactive wizard to configure the architectural rules.
 
-### Integración con Git Hooks (Recomendado)
+## Update
 
-Valida la arquitectura automáticamente antes de cada commit usando Husky.
+If you already have architect-linter installed and want to update to the latest version, use the **same installation script**:
 
-#### Paso 1: Instalar Husky en tu proyecto
+### Linux / macOS
 ```bash
-cd /ruta/a/tu/proyecto
+cd /path/to/repository/architect-linter
+git pull origin master  # Or the branch you use
+./setup.sh
+```
+
+### Windows (PowerShell)
+```powershell
+cd C:\path\to\repository\architect-linter
+git pull origin master  # Or the branch you use
+powershell -NoProfile -ExecutionPolicy Bypass -File .\setup.ps1
+```
+
+**The script automatically detects** if you already have architect-linter installed:
+- ✅ If it exists: Update mode (shows old version → compiles → installs → shows new version)
+- ✅ If it doesn't exist: Installation mode (compiles → installs → configures PATH if necessary)
+
+**Important for Windows**: After updating, close and reopen your terminal for the changes to take effect.
+
+### Manual Installation/Update
+
+If you prefer to do it manually without using the script:
+
+```bash
+# 1. Update the code (if you already have it cloned)
+git pull origin master
+
+# 2. Compile
+cargo build --release
+
+# 3. Copy the binary
+
+# Linux/macOS
+sudo cp target/release/architect-linter /usr/local/bin/
+
+# Windows PowerShell
+copy target\release\architect-linter.exe $env:USERPROFILE\bin\
+```
+
+### Git Hooks Integration (Recommended)
+
+Validate the architecture automatically before each commit using Husky.
+
+#### Step 1: Install Husky in your project
+```bash
+cd /path/to/your/project
 npx husky-init && npm install
 ```
 
-#### Paso 2: Configurar el Pre-Commit Hook
+#### Step 2: Configure the Pre-Commit Hook
 
-**Opción A: Con instalación global (Recomendado)**
+**Option A: With global installation (Recommended)**
 ```bash
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
@@ -120,33 +166,33 @@ echo "🏗️  Validando arquitectura antes del commit..."
 architect-linter .
 ```
 
-**Opción B: Con ruta específica**
+**Option B: With specific path**
 ```bash
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
 echo "🏗️  Validando arquitectura antes del commit..."
-"/ruta/completa/architect-linter/target/release/architect-linter" .
+"/full/path/architect-linter/target/release/architect-linter" .
 ```
 
-Edita el archivo `.husky/pre-commit` con el contenido de tu preferencia y dale permisos de ejecución:
+Edit the `.husky/pre-commit` file with the content of your preference and give it execution permissions:
 
 ```bash
 chmod +x .husky/pre-commit
 ```
 
-📖 **Guía completa de integración**: [NESTJS_INTEGRATION.md](NESTJS_INTEGRATION.md)
+📖 **Complete integration guide**: [NESTJS_INTEGRATION.md](NESTJS_INTEGRATION.md)
 
-## Motor de Reglas Dinámicas
+## Dynamic Rule Engine
 
-El architect-linter utiliza un sistema de reglas dinámicas definidas en `architect.json` que permiten restringir qué carpetas pueden interactuar entre sí, asegurando que el diseño arquitectónico se respete.
+Architect-linter uses a dynamic rule system defined in `architect.json` that allows restricting which folders can interact with each other, ensuring the architectural design is respected.
 
-### Concepto
+### Concept
 
-Una regla prohibida define una relación **Origen (from)** → **Destino (to)**:
-- Si un archivo ubicado en la ruta **"Origen"** intenta importar algo de la ruta **"Destino"**, el linter generará un error de arquitectura.
+A forbidden rule defines a **Source (from)** → **Target (to)** relationship:
+- If a file located in the **"Source"** path tries to import something from the **"Target"** path, the linter will generate an architecture error.
 
-### Estructura en architect.json
+### Structure in architect.json
 
 ```json
 {
@@ -161,25 +207,25 @@ Una regla prohibida define una relación **Origen (from)** → **Destino (to)**:
 }
 ```
 
-#### Propiedades
+#### Properties
 
-- **`max_lines_per_function`** (número): Límite de líneas por método/función
-- **`architecture_pattern`** (string): Patrón arquitectónico (`"Hexagonal"`, `"Clean"`, `"MVC"`, `"Ninguno"`)
-- **`forbidden_imports`** (array): Lista de reglas con:
-  - **`from`**: Patrón de carpeta/archivo donde se aplica la restricción
-  - **`to`**: Patrón de carpeta/archivo prohibido importar
+- **`max_lines_per_function`** (number): Line limit per method/function
+- **`architecture_pattern`** (string): Architectural pattern (`"Hexagonal"`, `"Clean"`, `"MVC"`, `"Ninguno"`)
+- **`forbidden_imports`** (array): List of rules with:
+  - **`from`**: Folder/file pattern where the restriction applies
+  - **`to`**: Forbidden folder/file pattern to import
 
-### Cómo Funciona el Motor
+### How the Engine Works
 
-1. **Escaneo**: Convierte todas las rutas a minúsculas para evitar errores de mayúsculas
-2. **Match**: Por cada archivo, verifica si su ruta contiene el texto definido en `from`
-3. **Validación**: Si hay coincidencia, analiza cada `import`. Si el origen del import contiene `to`, dispara una violación
+1. **Scanning**: Converts all paths to lowercase to avoid case errors
+2. **Match**: For each file, checks if its path contains the text defined in `from`
+3. **Validation**: If there's a match, analyzes each `import`. If the import source contains `to`, it triggers a violation
 
-### Casos de Uso Comunes
+### Common Use Cases
 
-#### A. Arquitectura Hexagonal (Preservar el Core)
+#### A. Hexagonal Architecture (Preserve the Core)
 
-Evita que la lógica de negocio dependa de detalles de implementación (Base de datos, APIs externas).
+Prevent business logic from depending on implementation details (Database, External APIs).
 
 ```json
 {
@@ -188,11 +234,11 @@ Evita que la lógica de negocio dependa de detalles de implementación (Base de 
 }
 ```
 
-**Resultado**: Si intentas importar un TypeORM Repository dentro de una Entity de dominio, el linter bloqueará el commit.
+**Result**: If you try to import a TypeORM Repository inside a domain Entity, the linter will block the commit.
 
-#### B. Desacoplamiento de Capas (NestJS/MVC)
+#### B. Layer Decoupling (NestJS/MVC)
 
-Evita que los Controladores se salten la capa de servicio.
+Prevent Controllers from skipping the service layer.
 
 ```json
 {
@@ -201,22 +247,22 @@ Evita que los Controladores se salten la capa de servicio.
 }
 ```
 
-**Resultado**: Obliga a inyectar un Service en lugar de consultar la base de datos directamente desde el entry point.
+**Result**: Forces injecting a Service instead of querying the database directly from the entry point.
 
-## Guía de Reglas por Patrón Arquitectónico
+## Rules Guide by Architectural Pattern
 
-### Tabla Comparativa de Restricciones
+### Comparative Restrictions Table
 
-| Patrón | Capa Origen (`from`) | Carpeta Prohibida (`to`) | Razón Técnica |
+| Pattern | Source Layer (`from`) | Forbidden Folder (`to`) | Technical Reason |
 |--------|---------------------|--------------------------|---------------|
-| **Hexagonal** | `/domain/` | `/infrastructure/` | El núcleo no debe conocer la base de datos o APIs externas |
-| **Hexagonal** | `/domain/` | `/application/` | El dominio no debe depender de casos de uso específicos |
-| **Clean** | `/entities/` | `/use-cases/` | Las reglas de negocio de alto nivel no deben conocer la orquestación |
-| **Clean** | `/use-cases/` | `/controllers/` | La lógica no debe saber quién la llama (web, CLI, etc.) |
-| **MVC** | `.controller.ts` | `.repository` | Desacoplamiento: El controlador solo habla con servicios |
-| **MVC** | `.service.ts` | `.controller.ts` | Evitar dependencias circulares y mantener lógica pura |
+| **Hexagonal** | `/domain/` | `/infrastructure/` | The core shouldn't know about database or external APIs |
+| **Hexagonal** | `/domain/` | `/application/` | The domain shouldn't depend on specific use cases |
+| **Clean** | `/entities/` | `/use-cases/` | High-level business rules shouldn't know orchestration |
+| **Clean** | `/use-cases/` | `/controllers/` | Logic shouldn't know who calls it (web, CLI, etc.) |
+| **MVC** | `.controller.ts` | `.repository` | Decoupling: Controller only talks to services |
+| **MVC** | `.service.ts` | `.controller.ts` | Avoid circular dependencies and maintain pure logic |
 
-### Ejemplo: Clean Architecture
+### Example: Clean Architecture
 
 ```json
 {
@@ -237,7 +283,7 @@ Evita que los Controladores se salten la capa de servicio.
 }
 ```
 
-### Ejemplo: Arquitectura Hexagonal
+### Example: Hexagonal Architecture
 
 ```json
 {
@@ -256,102 +302,118 @@ Evita que los Controladores se salten la capa de servicio.
 }
 ```
 
-## Uso
+## Usage
 
-### Modo Interactivo (Primera Ejecución)
+### Interactive Mode (First Run)
 
 ```bash
 ./target/release/architect-linter
 ```
 
-Si no existe `architect.json`, el linter:
-1. Detecta automáticamente el framework (NestJS, React, Angular, Express)
-2. Sugiere un patrón arquitectónico
-3. Propone un límite de líneas basado en el framework detectado
-4. Crea el archivo `architect.json` con la configuración seleccionada
+If `architect.json` doesn't exist, the linter:
+1. Automatically detects the framework (NestJS, React, Angular, Express)
+2. Suggests an architectural pattern
+3. Proposes a line limit based on the detected framework
+4. Creates the `architect.json` file with the selected configuration
 
-### Modo Automático (Ejecuciones Posteriores)
+### Automatic Mode (Subsequent Runs)
 
-Cuando ya existe `architect.json`, el linter ejecuta silenciosamente:
-
-```bash
-./target/release/architect-linter /ruta/al/proyecto
-```
-
-o
+When `architect.json` already exists, the linter runs silently:
 
 ```bash
-cargo run -- /ruta/al/proyecto
+./target/release/architect-linter /path/to/project
 ```
 
-### Argumentos CLI
+or
 
 ```bash
-architect-linter [OPCIONES] [RUTA]
+cargo run -- /path/to/project
 ```
 
-**Opciones**:
-- `-v, --version`: Muestra la versión del linter
-- `-h, --help`: Muestra la ayuda completa
-- **Sin argumentos**: Modo interactivo, muestra menú de proyectos disponibles
-- **Con ruta**: `architect-linter /ruta/proyecto` - Analiza el proyecto especificado
+### CLI Arguments
 
-**Ejemplos**:
 ```bash
-architect-linter --version          # Muestra: architect-linter 1.0.0
-architect-linter --help             # Muestra ayuda completa
-architect-linter                    # Modo interactivo
-architect-linter .                  # Analiza directorio actual
-architect-linter /ruta/proyecto     # Analiza proyecto específico
+architect-linter [OPTIONS] [PATH]
 ```
 
-## El Flujo de Trabajo Completo
+**Options**:
+- `-v, --version`: Shows the linter version
+- `-h, --help`: Shows complete help
+- **No arguments**: Interactive mode, shows menu of available projects
+- **With path**: `architect-linter /project/path` - Analyzes the specified project
 
-### Primera vez usando el linter
+**Examples**:
+```bash
+architect-linter --version          # Shows: architect-linter 2.0.0
+architect-linter --help             # Shows complete help
+architect-linter                    # Interactive mode
+architect-linter .                  # Analyzes current directory
+architect-linter /project/path      # Analyzes specific project
+```
 
-1. **Commit inicial**: Al ejecutar `git commit`, Husky lanza el linter automáticamente
-2. **Discovery automático**: Si es la primera vez (no existe `architect.json`), el linter:
-   - Lee tu `package.json` y estructura de carpetas
-   - Detecta el framework (NestJS, React, Angular, Express)
-   - Consulta la IA para sugerir límites de líneas y reglas arquitectónicas
-3. **Configuración guiada**: Te muestra las sugerencias y solicita confirmación
-4. **Persistencia**: Una vez aceptas, crea `architect.json` y valida el código
-5. **Resultado**: Si no hay violaciones, el commit continúa; si las hay, se aborta mostrando los errores
+## The Complete Workflow
 
-### Ejecuciones posteriores
+### First time using the linter
 
-Una vez existe `architect.json`:
-- El linter carga silenciosamente la configuración
-- Valida el código instantáneamente (gracias a Rust)
-- Muestra violaciones si existen o permite el commit
+1. **Initial commit**: When running `git commit`, Husky automatically launches the linter
+2. **Automatic discovery**: If it's the first time (no `architect.json` exists), the linter:
+   - Reads your `package.json` and folder structure
+   - Detects the framework (NestJS, React, Angular, Express)
+   - Queries AI to suggest line limits and architectural rules
+3. **Guided configuration**: Shows you the suggestions and requests confirmation
+4. **Persistence**: Once you accept, creates `architect.json` and validates the code
+5. **Result**: If there are no violations, the commit continues; if there are, it's aborted showing the errors
 
-## FAQ (Preguntas Frecuentes)
+### Subsequent runs
 
-### ¿Qué pasa si los tests fallan?
-El commit se aborta automáticamente. Git te mostrará exactamente qué archivo y línea está rompiendo la arquitectura, con contexto visual del error.
+Once `architect.json` exists:
+- The linter silently loads the configuration
+- Validates the code instantly (thanks to Rust)
+- Shows violations if they exist or allows the commit
 
-### ¿Puedo saltarme el linter en caso de emergencia?
-Sí, puedes usar `git commit --no-verify` para omitir los hooks, pero ¡úsalo con responsabilidad! El Arquitecto Virtual se sentirá decepcionado 😢
+## FAQ (Frequently Asked Questions)
 
-### ¿Necesito internet para usar el linter?
-Solo la **primera vez** para que la IA sugiera las reglas (configuración inicial asistida). Una vez creado el `architect.json`, el linter funciona **100% offline** y es instantáneo.
+### What do I do if I get a configuration error in architect.json?
 
-### ¿Funciona con JavaScript además de TypeScript?
-Actualmente solo soporta TypeScript (`.ts`, `.tsx`). El soporte para JavaScript está en el roadmap.
+The linter automatically validates the `architect.json` file and shows clear error messages with suggestions on how to fix them. The most common errors are:
 
-### ¿Cómo actualizo las reglas después de la configuración inicial?
-Simplemente edita el archivo `architect.json` manualmente. El linter cargará automáticamente los cambios en la próxima ejecución.
+- **JSON with invalid syntax**: Missing comma, brace or extra characters
+- **Missing fields**: `max_lines_per_function`, `architecture_pattern` or `forbidden_imports`
+- **Incorrect types**: For example, putting `"50"` (string) instead of `50` (number)
+- **Invalid values**: Architectural pattern that doesn't exist, or `max_lines_per_function` at 0
 
-### ¿Qué variables de entorno necesito para la IA?
-Para la configuración asistida por IA necesitas:
-- `ANTHROPIC_AUTH_TOKEN`: Tu API key de Anthropic
-- `ANTHROPIC_BASE_URL`: URL del endpoint de la API
+**Each error includes:**
+- ✅ Clear description of the problem
+- ✅ Suggestion on how to fix it
+- ✅ Example of correct code
 
-Si no están configuradas, el linter te lo indicará en la primera ejecución.
+**Complete error guide:** See [CONFIG_ERRORS.md](CONFIG_ERRORS.md) for detailed examples of all possible errors.
 
-## Ejemplo de Salida
+### What happens if tests fail?
+The commit is automatically aborted. Git will show you exactly which file and line is breaking the architecture, with visual context of the error.
 
-### Primera Ejecución (Modo Configuración)
+### Can I skip the linter in an emergency?
+Yes, you can use `git commit --no-verify` to skip the hooks, but use it responsibly! The Virtual Architect will feel disappointed 😢
+
+### Do I need internet to use the linter?
+Only the **first time** for the AI to suggest rules (assisted initial configuration). Once `architect.json` is created, the linter works **100% offline** and is instant.
+
+### Does it work with JavaScript in addition to TypeScript?
+Yes, the linter supports both TypeScript (`.ts`, `.tsx`) and JavaScript (`.js`, `.jsx`).
+
+### How do I update the rules after initial configuration?
+Simply edit the `architect.json` file manually. The linter will automatically load the changes on the next run.
+
+### What environment variables do I need for AI?
+For AI-assisted configuration you need:
+- `ANTHROPIC_AUTH_TOKEN`: Your Anthropic API key
+- `ANTHROPIC_BASE_URL`: API endpoint URL
+
+If they're not configured, the linter will indicate this on the first run.
+
+## Example Output
+
+### First Run (Configuration Mode)
 ```
 🏛️  WELCOME TO ARCHITECT-LINTER
 📝 No encontré 'architect.json'. Vamos a configurar tu proyecto.
@@ -361,7 +423,7 @@ Si no están configuradas, el linter te lo indicará en la primera ejecución.
 ✅ Configuración guardada en 'architect.json'
 ```
 
-### Ejecuciones Posteriores (Modo Automático)
+### Subsequent Runs (Automatic Mode)
 ```
 🏛️  WELCOME TO ARCHITECT-LINTER
 
@@ -378,110 +440,115 @@ Si no están configuradas, el linter te lo indicará en la primera ejecución.
 ❌ Se encontraron 1 violaciones.
 ```
 
-## Estructura del Proyecto
+## Project Structure
 
 ```
 architect-linter/
 ├── src/
-│   ├── main.rs                 # Orquestación, configuración interactiva, recolección de archivos
-│   ├── analyzer.rs             # Análisis de TypeScript, validación de reglas dinámicas
-│   ├── config.rs               # Tipos: LinterContext, ArchPattern, Framework, ForbiddenRule
-│   └── detector.rs             # Detección de framework y sugerencias LOC
-├── Cargo.toml                  # Dependencias y configuración del proyecto
-├── README.md                   # Esta documentación
-├── CHANGELOG.md                # Historial de versiones
-├── NESTJS_INTEGRATION.md       # Guía de integración con Git Hooks
-└── pre-commit.example          # Plantilla para Husky
+│   ├── main.rs                 # Orchestration, interactive configuration, file collection
+│   ├── analyzer.rs             # TypeScript analysis, dynamic rule validation
+│   ├── config.rs               # Types: LinterContext, ArchPattern, Framework, ForbiddenRule
+│   └── detector.rs             # Framework detection and LOC suggestions
+├── Cargo.toml                  # Dependencies and project configuration
+├── README.md                   # This documentation
+├── CHANGELOG.md                # Version history
+├── NESTJS_INTEGRATION.md       # Git Hooks integration guide
+└── pre-commit.example          # Husky template
 ```
 
-## Tecnologías
+## Technologies
 
-- **swc_ecma_parser**: Parser de TypeScript/JavaScript de alto rendimiento
-- **rayon**: Procesamiento paralelo automático
-- **miette**: Reportes de diagnóstico elegantes con contexto
-- **walkdir**: Traversal eficiente de directorios
-- **dialoguer**: UI interactiva para terminal
-- **indicatif**: Barras de progreso
-- **serde_json**: Parseo de configuración JSON
+- **swc_ecma_parser**: High-performance TypeScript/JavaScript parser
+- **rayon**: Automatic parallel processing
+- **miette**: Elegant diagnostic reports with context
+- **walkdir**: Efficient directory traversal
+- **dialoguer**: Interactive terminal UI
+- **indicatif**: Progress bars
+- **serde_json**: JSON configuration parsing
 
-## Reglas Implementadas
+## Implemented Rules
 
-### 1. Importaciones Prohibidas (Dinámicas)
-Definidas en `architect.json` con el formato `from` → `to`. El motor valida cada `import` contra las reglas configuradas.
+### 1. Forbidden Imports (Dynamic)
+Defined in `architect.json` with the `from` → `to` format. The engine validates each `import` against the configured rules.
 
-### 2. Complejidad de Funciones
-Cuenta las líneas de cada método/función y alerta si excede `max_lines_per_function`.
+### 2. Function Complexity
+Counts the lines of each method/function and alerts if it exceeds `max_lines_per_function`.
 
-### 3. Regla Extra: Controller → Repository (NestJS)
-Prohibición hardcoded: archivos que contienen `"controller"` no pueden importar `".repository"`, reforzando el patrón MVC.
+### 3. Extra Rule: Controller → Repository (NestJS)
+Hardcoded prohibition: files containing `"controller"` cannot import `".repository"`, reinforcing the MVC pattern.
 
 ## Roadmap
 
-### Completado ✅
-- [x] Motor de reglas dinámicas con `forbidden_imports`
-- [x] Detección automática de framework (NestJS, React, Angular, Express)
-- [x] Configuración interactiva en primera ejecución
-- [x] Soporte para patrones: Hexagonal, Clean, MVC
-- [x] Procesamiento paralelo con Rayon
-- [x] Integración con Git Hooks (Husky)
-- [x] Arquitectura modular (analyzer, config, detector)
-- [x] Reportes elegantes con Miette
+### Completed ✅
+- [x] Dynamic rule engine with `forbidden_imports`
+- [x] Automatic framework detection (NestJS, React, Angular, Express)
+- [x] Interactive configuration on first run
+- [x] Support for patterns: Hexagonal, Clean, MVC
+- [x] Parallel processing with Rayon
+- [x] Git Hooks integration (Husky)
+- [x] Modular architecture (analyzer, config, detector)
+- [x] Elegant reports with Miette
+- [x] JavaScript support (.js, .jsx)
+- [x] JSON schema validation with clear error messages
 
-### Próximamente 🚧
-- [ ] Soporte para JavaScript (.js, .jsx)
-- [ ] Validación de esquema JSON con mensajes de error claros
-- [ ] Exportación de reportes (JSON, HTML, Markdown)
-- [ ] Modo watch para desarrollo continuo
-- [ ] Análisis incremental con caché
+### Coming Soon 🚧
+- [ ] Report export (JSON, HTML, Markdown)
+- [ ] Watch mode for continuous development
+- [ ] Incremental analysis with cache
 
-### Futuro 🔮
-- [ ] Reglas personalizadas mediante plugins en Rust/WASM
-- [ ] Integración nativa con CI/CD (GitHub Actions, GitLab CI)
-- [ ] Configuración de severidad por regla (error, warning, info)
-- [ ] Dashboard web para visualizar violaciones históricas
-- [ ] Soporte para más lenguajes (Python, Go, Java)
+### Future 🔮
+- [ ] Custom rules via Rust/WASM plugins
+- [ ] Native CI/CD integration (GitHub Actions, GitLab CI)
+- [ ] Severity configuration per rule (error, warning, info)
+- [ ] Web dashboard to visualize historical violations
+- [ ] Support for more languages (Python, Go, Java)
 
-## Contribuir
+## Contributing
 
-Las contribuciones son bienvenidas. Por favor:
+Contributions are welcome. Please:
 
-1. Fork el repositorio
-2. Crea una rama para tu feature (`git checkout -b feature/amazing-feature`)
-3. Commit tus cambios (`git commit -m 'Add amazing feature'`)
-4. Push a la rama (`git push origin feature/amazing-feature`)
-5. Abre un Pull Request
+1. Fork the repository
+2. Create a branch for your feature (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-## Licencia
+## License
 
-Este proyecto está bajo la licencia MIT.
+This project is under the MIT license.
 
-## Autor
+## Author
 
 Sergio Guadarrama - [GitHub](https://github.com/sergiogswv)
 
 ## Changelog
 
-Ver [CHANGELOG.md](CHANGELOG.md) para el historial completo de versiones.
+See [CHANGELOG.md](CHANGELOG.md) for the complete version history.
 
-### v1.0.0 (2026-01-31) - Primera Versión Estable
-- 🎉 Primera versión estable lista para producción
-- 🚀 Flags CLI: `--version` y `--help` implementados
-- 📦 Instalación optimizada para Windows con scripts mejorados
-- 📚 Documentación completa de instalación en Windows con solución de problemas
-- ✅ Validación completa en proyectos reales
+### v2.0.0 (2026-02-03) - Major Update
+- 🌐 Complete English translation of documentation
+- 📚 Improved internationalization and accessibility
+- ✨ Enhanced documentation structure and clarity
 
-### v0.8.0 (2026-01-31) - Configuración Asistida por IA
-- 🤖 Integración con Claude (Anthropic API) para sugerencias arquitectónicas inteligentes
-- 🔍 Discovery automático del proyecto con análisis de dependencias y estructura
-- 📦 Scripts de instalación automatizada para Linux/macOS y Windows
-- 💡 Wizard interactivo para confirmación de reglas sugeridas por IA
-- 📚 FAQ completa y documentación del flujo de trabajo
-- 🎯 Módulo UI separado para mejor organización del código
+### v1.0.0 (2026-01-31) - First Stable Release
+- 🎉 First stable version ready for production
+- 🚀 CLI Flags: `--version` and `--help` implemented
+- 📦 Optimized installation for Windows with improved scripts
+- 📚 Complete Windows installation documentation with troubleshooting
+- ✅ Full validation on real projects
 
-### v0.7.0 (2026-01-30) - Motor de Reglas Dinámicas
-- ✨ Motor de reglas dinámicas completamente funcional
-- 🔍 Detección automática de framework con módulo `detector.rs`
-- 🎯 Configuración interactiva en primera ejecución
-- 📐 Soporte para patrones arquitectónicos: Hexagonal, Clean, MVC
-- 🛠️ Corrección de errores de compilación y warnings
-- 📚 Documentación actualizada con ejemplos por patrón
+### v0.8.0 (2026-01-31) - AI-Assisted Configuration
+- 🤖 Integration with Claude (Anthropic API) for intelligent architectural suggestions
+- 🔍 Automatic project discovery with dependency and structure analysis
+- 📦 Automated installation scripts for Linux/macOS and Windows
+- 💡 Interactive wizard for AI-suggested rule confirmation
+- 📚 Complete FAQ and workflow documentation
+- 🎯 Separate UI module for better code organization
+
+### v0.7.0 (2026-01-30) - Dynamic Rule Engine
+- ✨ Fully functional dynamic rule engine
+- 🔍 Automatic framework detection with `detector.rs` module
+- 🎯 Interactive configuration on first run
+- 📐 Support for architectural patterns: Hexagonal, Clean, MVC
+- 🛠️ Compilation error and warning fixes
+- 📚 Updated documentation with examples per pattern
