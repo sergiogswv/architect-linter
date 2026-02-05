@@ -1,8 +1,99 @@
 use crate::ai::{AISuggestionResponse, SuggestedRule};
+use crate::config::AIConfig;
+use console::style;
 use dialoguer::{theme::ColorfulTheme, Input, MultiSelect, Select};
 use miette::{IntoDiagnostic, Result};
 use std::env;
 use std::path::PathBuf;
+
+/// Imprime el banner de bienvenida con ASCII art y estilo de alto impacto
+pub fn print_banner() {
+    println!();
+    println!(
+        "{}",
+        style(
+            "╔══════════════════════════════════════════════════════════════════════════════════╗"
+        )
+        .cyan()
+    );
+    println!(
+        "{}",
+        style(
+            r"
+    ___    ____  ______ __  __________________  ______ ______ 
+   /   |  / __ \/ ____// / / /  _/_  __/ ____/ / ____//_  __/ 
+  / /| | / /_/ / /    / /_/ // /  / / / __/   / /      / /    
+ / ___ |/ _, _/ /___ / __  // /  / / / /___  / /___   / /     
+/_/  |_/_/ |_|\____//_/ /_/___/ /_/ /_____/  \____/  /_/      
+                                                              
+    __     _____  _   __ ______ ______ ____           
+   / /    /  _/ / | / //_  __// ____// __ \          
+  / /     / /  /  |/ /  / /  / __/  / /_/ /          
+ / /___ _/ /  / /|  /  / /  / /___ / _, _/           
+/_____//___/ /_/ |_/  /_/  /_____//_/ |_|            
+"
+        )
+        .cyan()
+        .bold()
+    );
+    println!(
+        "{}",
+        style(
+            "╚══════════════════════════════════════════════════════════════════════════════════╝"
+        )
+        .cyan()
+    );
+    println!();
+    println!(
+        "{}",
+        style("                 Manteniendo la arquitectura de tu código ⚡")
+            .white()
+            .bold()
+    );
+    println!();
+}
+
+/// Solicita al usuario la configuración de IA
+pub fn ask_ai_config() -> Result<AIConfig> {
+    println!("🤖 CONFIGURACIÓN DE LA IA");
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!("Para analizar tu arquitectura con IA, necesitas configurar:");
+    println!("  • URL de la API (ej: https://api.anthropic.com)");
+    println!("  • API Key (tu token de autenticación)");
+    println!("  • Modelo a usar (ej: claude-sonnet-4-5-20250929)");
+    println!();
+
+    // Verificar si existen variables de entorno para usar como defaults
+    let default_url = env::var("ANTHROPIC_BASE_URL").ok();
+    let default_key = env::var("ANTHROPIC_AUTH_TOKEN").ok();
+    let default_model = env::var("ANTHROPIC_MODEL").ok();
+
+    let api_url: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("URL de la API")
+        .default(default_url.unwrap_or_else(|| "https://api.anthropic.com".to_string()))
+        .interact_text()
+        .into_diagnostic()?;
+
+    let api_key: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("API Key")
+        .default(default_key.unwrap_or_else(|| String::new()))
+        .interact_text()
+        .into_diagnostic()?;
+
+    let model: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Modelo de IA")
+        .default(default_model.unwrap_or_else(|| "claude-sonnet-4-5-20250929".to_string()))
+        .interact_text()
+        .into_diagnostic()?;
+
+    println!("✅ Configuración de IA guardada.\n");
+
+    Ok(AIConfig {
+        api_url,
+        api_key,
+        model,
+    })
+}
 
 /// Permite al usuario elegir qué reglas de las sugeridas por la IA desea aplicar.
 pub fn ask_user_to_confirm_rules(

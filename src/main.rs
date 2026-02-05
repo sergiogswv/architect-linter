@@ -7,6 +7,7 @@ use swc_common::SourceMap;
 
 mod ai;
 mod analyzer;
+mod circular;
 mod cli;
 mod config;
 mod detector;
@@ -20,7 +21,7 @@ fn main() -> Result<()> {
         None => return Ok(()), // Se procesó --help o --version
     };
 
-    println!("🏛️  WELCOME TO ARCHITECT-LINTER");
+    ui::print_banner();
 
     // 2. Obtener la ruta del proyecto
     let project_root = if args.len() > 1 {
@@ -67,7 +68,25 @@ fn main() -> Result<()> {
 
     pb.finish_and_clear();
 
-    // 6. Resultado final
+    // 6. Análisis de Dependencias Cíclicas
+    println!("\n🔍 Analizando dependencias cíclicas...");
+    let cycles = circular::analyze_circular_dependencies(&files, &project_root, &cm);
+
+    match cycles {
+        Ok(detected_cycles) => {
+            if !detected_cycles.is_empty() {
+                circular::print_circular_dependency_report(&detected_cycles);
+                println!("\n⚠️  Se encontraron dependencias cíclicas que deben ser resueltas.");
+                std::process::exit(1);
+            }
+        }
+        Err(e) => {
+            println!("⚠️  No se pudo analizar dependencias cíclicas: {}", e);
+            println!("💡 Continuando con el resto del análisis...");
+        }
+    }
+
+    // 7. Resultado final
     let total = *error_count.lock().unwrap();
     if total > 0 {
         println!("❌ Se encontraron {} violaciones arquitectónicas.", total);

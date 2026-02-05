@@ -42,12 +42,38 @@ pub struct ForbiddenRule {
     pub to: String,
 }
 
+/// Configuración de IA para análisis arquitectónico
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AIConfig {
+    pub api_url: String,
+    pub api_key: String,
+    pub model: String,
+}
+
+impl Default for AIConfig {
+    fn default() -> Self {
+        Self {
+            api_url: "https://api.anthropic.com".to_string(),
+            api_key: String::new(),
+            model: "claude-sonnet-4-5-20250929".to_string(),
+        }
+    }
+}
+
 /// Estructura para mapear el architect.json tal cual está en el disco
 #[derive(Debug, Serialize, Deserialize)]
 struct ConfigFile {
     pub max_lines_per_function: usize,
     pub architecture_pattern: ArchPattern,
     pub forbidden_imports: Vec<ForbiddenRule>,
+}
+
+/// Estructura para el archivo de configuración de IA (separado y privado)
+#[derive(Debug, Serialize, Deserialize)]
+struct AIConfigFile {
+    pub api_url: String,
+    pub api_key: String,
+    pub model: String,
 }
 
 pub struct LinterContext {
@@ -57,13 +83,15 @@ pub struct LinterContext {
     #[allow(dead_code)]
     pub pattern: ArchPattern,
     pub forbidden_imports: Vec<ForbiddenRule>,
+    #[allow(dead_code)]
+    pub ai_config: Option<AIConfig>,
 }
 
-/// CARGA SILENCIOSA: Lee architect.json y lo convierte en contexto
+/// CARGA SILENCIOSA: Lee architect.json y .architect.ai.json y los convierte en contexto
 pub fn load_config(root: &Path) -> Result<LinterContext> {
     let config_path = root.join("architect.json");
 
-    // Leer el archivo
+    // Leer el archivo de reglas
     let content = fs::read_to_string(&config_path)
         .map_err(|e| ConfigError::new(
             format!("No se pudo leer architect.json: {}", e),
@@ -90,6 +118,20 @@ pub fn load_config(root: &Path) -> Result<LinterContext> {
     // Validar los valores
     validate_config_values(&config)?;
 
+    // Cargar configuración de IA (si existe, es opcional)
+    let ai_config_path = root.join(".architect.ai.json");
+    let ai_config = if ai_config_path.exists() {
+        let ai_content = fs::read_to_string(&ai_config_path).into_diagnostic()?;
+        let ai_file: AIConfigFile = serde_json::from_str(&ai_content).into_diagnostic()?;
+        Some(AIConfig {
+            api_url: ai_file.api_url,
+            api_key: ai_file.api_key,
+            model: ai_file.model,
+        })
+    } else {
+        None
+    };
+
     // Re-detectamos el framework para el contexto actual
     let framework = crate::detector::detect_framework(root);
 
@@ -98,6 +140,7 @@ pub fn load_config(root: &Path) -> Result<LinterContext> {
         framework,
         pattern: config.architecture_pattern,
         forbidden_imports: config.forbidden_imports,
+        ai_config,
     })
 }
 
@@ -257,20 +300,23 @@ pub fn setup_or_load_config(root: &Path) -> Result<std::sync::Arc<LinterContext>
     }
 
     // MODO CONFIGURACIÓN (IA Discovery)
-    println!("📝 No encontré 'architect.json'. Iniciando descubrimiento asistido por IA...");
+    println!("📝 No encontré 'architect.json'. Iniciando descubrimiento asistido por IA...\n");
+
+    // 0. Pedir configuración de IA si no existe
+    let ai_config = crate::ui::ask_ai_config()?;
 
     // 1. Discovery (Input local)
     let project_info = crate::discovery::get_architecture_snapshot(root);
 
     // 2. IA (Procesamiento inteligente)
-    let suggestions = crate::ai::sugerir_arquitectura_inicial(project_info)
+    let suggestions = crate::ai::sugerir_arquitectura_inicial(project_info, ai_config.clone())
         .map_err(|e| miette::miette!("Error consultando la IA: {}", e))?;
 
     // 3. UI (Wizard de confirmación)
     let (selected_rules, max_lines) = crate::ui::ask_user_to_confirm_rules(suggestions)?;
 
     // 4. Config (Persistencia)
-    let final_ctx = save_config_from_wizard(root, selected_rules, max_lines)?;
+    let final_ctx = save_config_from_wizard(root, selected_rules, max_lines, Some(ai_config))?;
 
     println!("✅ Configuración guardada exitosamente.\n");
     Ok(Arc::new(final_ctx))
@@ -281,7 +327,9 @@ pub fn save_config_from_wizard(
     root: &Path,
     rules: Vec<SuggestedRule>,
     max_lines: usize,
+    ai_config: Option<AIConfig>,
 ) -> Result<LinterContext> {
+    // 1. Guardar architect.json (reglas - compartible en el repo)
     let config_path = root.join("architect.json");
 
     // Convertimos de SuggestedRule (IA) a ForbiddenRule (Linter)
@@ -303,7 +351,27 @@ pub fn save_config_from_wizard(
     };
 
     let json = serde_json::to_string_pretty(&config).into_diagnostic()?;
-    fs::write(config_path, json).into_diagnostic()?;
+    fs::write(&config_path, json).into_diagnostic()?;
+
+    // 2. Guardar .architect.ai.json (config de IA - PRIVADO, en .gitignore)
+    if let Some(ai_cfg) = ai_config.clone() {
+        let ai_config_path = root.join(".architect.ai.json");
+        let ai_config_file = AIConfigFile {
+            api_url: ai_cfg.api_url,
+            api_key: ai_cfg.api_key,
+            model: ai_cfg.model,
+        };
+        let ai_json = serde_json::to_string_pretty(&ai_config_file).into_diagnostic()?;
+        fs::write(&ai_config_path, ai_json).into_diagnostic()?;
+
+        println!("🔐 Configuración de IA guardada en: .architect.ai.json");
+        println!("⚠️  Este archivo contiene API keys y NO debe ser compartido en el repositorio.");
+
+        // Actualizar .gitignore automáticamente
+        update_gitignore(root)?;
+
+        println!();
+    }
 
     // Instalar husky y pre-commit hook después de guardar la configuración
     setup_husky_pre_commit(root)?;
@@ -313,6 +381,7 @@ pub fn save_config_from_wizard(
         framework,
         pattern: config.architecture_pattern,
         forbidden_imports,
+        ai_config,
     })
 }
 
@@ -411,6 +480,44 @@ exit /b 0
             println!("💡 Asegúrate de tener Node.js y npm instalados.");
             println!("💡 Para configurar husky manualmente, ejecuta: npx husky-init");
         }
+    }
+
+    Ok(())
+}
+
+/// Actualiza el .gitignore del proyecto para incluir .architect.ai.json
+fn update_gitignore(root: &Path) -> Result<()> {
+    let gitignore_path = root.join(".gitignore");
+    let entry_to_add = "# Architect Linter - AI Configuration (contains API keys)\n.architect.ai.json";
+
+    // Verificar si el archivo existe
+    if gitignore_path.exists() {
+        // Leer el contenido actual
+        let content = fs::read_to_string(&gitignore_path).into_diagnostic()?;
+
+        // Verificar si ya contiene la entrada
+        if content.contains(".architect.ai.json") {
+            println!("✅ .architect.ai.json ya está en el .gitignore");
+            return Ok(());
+        }
+
+        // Agregar la entrada al final
+        let mut updated_content = content;
+        if !updated_content.ends_with('\n') {
+            updated_content.push('\n');
+        }
+        updated_content.push_str(entry_to_add);
+        updated_content.push('\n');
+
+        fs::write(&gitignore_path, updated_content).into_diagnostic()?;
+        println!("✅ .architect.ai.json agregado al .gitignore");
+    } else {
+        // Crear el .gitignore con la entrada
+        let mut gitignore_content = String::from("# Architect Linter - AI Configuration (contains API keys)\n");
+        gitignore_content.push_str(".architect.ai.json\n");
+
+        fs::write(&gitignore_path, gitignore_content).into_diagnostic()?;
+        println!("✅ .gitignore creado con .architect.ai.json");
     }
 
     Ok(())

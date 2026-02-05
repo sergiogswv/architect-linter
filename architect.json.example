@@ -1,20 +1,18 @@
 {
   "max_lines_per_function": 40,
+  "architecture_pattern": "MVC",
   "forbidden_imports": [
     {
-      "file_pattern": ".controller.ts",
-      "prohibited": ".repository",
-      "reason": "Los controladores deben usar servicios, no repositorios directamente"
+      "from": "src/**/.controller.ts",
+      "to": "src/**/.repository.ts"
     },
     {
-      "file_pattern": ".service.ts",
-      "prohibited": ".controller",
-      "reason": "Los servicios no deben depender de controladores"
+      "from": "src/**/.service.ts",
+      "to": "src/**/.controller.ts"
     },
     {
-      "file_pattern": ".component.tsx",
-      "prohibited": ".repository",
-      "reason": "Los componentes no deben acceder a la capa de datos directamente"
+      "from": "src/components/**/*.tsx",
+      "to": "src/repositories/**/*.ts"
     }
   ]
 }

@@ -5,45 +5,61 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.0] - 2026-02-03
+## [2.0.0] - 2026-02-04
 
-### 🎉 Major Release: Architecture & Tooling Improvements
+### 🎉 Major Release: Circular Dependencies & Security
 
-This major version includes significant refactoring, unified setup scripts, and comprehensive JSON schema validation.
+This major version introduces circular dependency detection, separated AI configuration for security, and improved visual experience.
 
 ### Added
-- **Unified setup scripts**:
-  - Single `setup.sh` and `setup.ps1` scripts that automatically detect installation vs update
-  - Replaces separate install and update scripts
-  - Shows previous version when updating
-  - Improved user experience with clearer messages
-- **Complete JSON schema validation**:
-  - Syntax validation before parsing
-  - Required fields validation with specific messages
-  - Data type validation (number, string, array, object)
-  - Value validation (ranges, valid options)
-  - Duplicate rules detection in `forbidden_imports`
-  - Clear error messages with solution suggestions
-  - Each error includes correct code example
-- **Error documentation**:
-  - `CONFIG_ERRORS.md` with complete guide of common errors
-  - Examples of all possible error types
-  - Step-by-step solutions for each error
-  - Valid configuration examples per framework
-- **Full JavaScript support**:
-  - Analysis of `.js` and `.jsx` files in addition to TypeScript
-  - Automatic parser based on extension (TypeScript vs JavaScript)
-  - JSX support in `.jsx` and `.tsx` files
-  - Decorators enabled in JavaScript
-- **Improved rules engine**:
-  - Smart matching of relative imports (`../services/`, `./api/`)
-  - Alias imports matching (`@/services/`, `@/api/`)
-  - Glob pattern normalization (`src/components/**` → `src/components/`)
-  - Helper functions `normalize_pattern()` and `matches_pattern()`
-- **New CLI module** (`cli.rs`):
-  - Dedicated module for CLI operations
-  - `print_help()`, `print_version()`, `process_args()`
-  - Cleaner separation of concerns
+- **🔴 Circular dependency detection**:
+  - New `circular.rs` module with graph-based analysis
+  - DFS (Depth-First Search) algorithm for cycle detection
+  - Automatic import extraction from all project files
+  - Relative path resolution (`../`, `./`)
+  - Detailed cycle reporting with path visualization
+  - Suggested solutions for breaking cycles
+- **🔐 Separated AI configuration**:
+  - `architect.json` for rules (sharable in repo)
+  - `.architect.ai.json` for AI config (private, contains API keys)
+  - Wizard for AI configuration on first run
+  - Environment variable defaults (`ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL`)
+  - `.gitignore` automatically includes `.architect.ai.json`
+- **🪝 Automatic Husky setup**:
+  - Pre-commit hook configuration during initial setup
+  - Creates `.husky/pre-commit` automatically
+  - Windows and Unix-compatible hooks
+- **🎨 Enhanced visual experience**:
+  - New ASCII art banner in `ui.rs`
+  - Improved wizard prompts
+  - Better error messages and formatting
+- **📁 Example files**:
+  - `.architect.ai.json.example` - AI configuration template
+  - `.gitignore.example` - Template for projects using architect-linter
+  - Updated `architect.json.example` without AI config
+
+### Changed
+- **AI configuration**:
+  - Moved from environment variables to file-based config
+  - More flexible: URL, API key, and model are now configurable
+  - Backward compatible with environment variables as defaults
+- **Setup flow**:
+  - AI config wizard now runs before architecture discovery
+  - Clear separation between rules and credentials
+- **Documentation**:
+  - Updated README with new features
+  - Security best practices highlighted
+  - Added circular dependency examples
+
+### Security
+- ⚠️ API keys are now stored in `.architect.ai.json` which is in `.gitignore`
+- ✅ Each developer has their own AI configuration
+- ✅ Rules in `architect.json` can be safely shared in repositories
+
+### Technical Details
+- **Graph algorithm**: O(V + E) complexity where V = files, E = imports
+- **Path resolution**: Handles relative imports, index files, and multiple extensions
+- **DFS implementation**: Recursive with recursion stack for cycle detection
 
 ### Changed
 - **Major refactoring of main.rs**:
