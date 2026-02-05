@@ -1,0 +1,3 @@
+# Architect Linter - AI Configuration (contains API keys)
+# Este archivo contiene configuración sensible con API keys y no debe compartirse
+.architect.ai.json

@@ -7,14 +7,17 @@ A software architecture linter written in Rust that validates architectural rule
 ## Features
 
 - **Dynamic Rule Engine**: Define custom constraints between layers via `architect.json`
+- **Circular Dependency Detection**: Analyzes the dependency graph and automatically detects cycles
+- **AI Configuration**: Architect assistant with Claude that suggests rules based on your project
+- **Separated Configuration**: `architect.json` for rules (sharable) and `.architect.ai.json` for API keys (private)
 - **Automatic Framework Detection**: Recognizes NestJS, React, Angular, Express and suggests optimal configurations
 - **Architectural Patterns**: Support for Hexagonal, Clean Architecture, MVC and more
 - **Import Validation**: Detects and blocks imports that violate the defined architecture
 - **Complexity Control**: Validates that functions don't exceed configurable line limits
 - **Parallel Processing**: Ultra-fast analysis using multi-threaded processing with Rayon
 - **Visual Reports**: Detailed and colorful errors with exact problem location
-- **Interactive Mode**: Guided configuration on first run
-- **Git Hooks Integration**: Compatible with Husky for automatic pre-commit validation
+- **Interactive Mode**: Guided configuration on first run with enhanced visual banner
+- **Git Hooks Integration**: Automatic Husky and pre-commit hook configuration
 
 ## Quick Start
 
@@ -99,7 +102,18 @@ architect-linter /path/to/your/project
 architect-linter
 ```
 
-**First run**: If `architect.json` doesn't exist, the linter will automatically detect your framework and guide you with an interactive wizard to configure the architectural rules.
+**First run**: If `architect.json` doesn't exist, the linter:
+1. Displays a visual welcome banner
+2. Requests AI configuration (URL, API Key, Model)
+   - Uses environment variables as defaults if available (`ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL`)
+3. Automatically detects your framework
+4. Queries AI to suggest architectural rules
+5. Guides you through an interactive wizard to confirm suggestions
+6. Creates two files:
+   - `architect.json` with the selected rules
+   - `.architect.ai.json` with AI configuration
+7. Automatically updates `.gitignore` to exclude `.architect.ai.json`
+8. Automatically configures Husky and the pre-commit hook
 
 ## Update
 
@@ -145,9 +159,11 @@ sudo cp target/release/architect-linter /usr/local/bin/
 copy target\release\architect-linter.exe $env:USERPROFILE\bin\
 ```
 
-### Git Hooks Integration (Recommended)
+### Git Hooks Integration (Automatic)
 
-Validate the architecture automatically before each commit using Husky.
+**New in v2.0!** The linter now automatically configures Husky and the pre-commit hook when generating `architect.json`.
+
+If you prefer to configure it manually:
 
 #### Step 1: Install Husky in your project
 ```bash
@@ -162,8 +178,18 @@ npx husky-init && npm install
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
-echo "🏗️  Validando arquitectura antes del commit..."
+echo "🏗️  Running Architect Linter..."
 architect-linter .
+
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ The commit was cancelled due to architecture violations"
+  echo "💡 Fix the errors reported above and try the commit again"
+  exit 1
+fi
+
+echo "✅ Architecture validation successful"
+exit 0
 ```
 
 **Option B: With specific path**
@@ -171,7 +197,7 @@ architect-linter .
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
-echo "🏗️  Validando arquitectura antes del commit..."
+echo "🏗️  Running Architect Linter..."
 "/full/path/architect-linter/target/release/architect-linter" .
 ```
 
@@ -194,6 +220,9 @@ A forbidden rule defines a **Source (from)** → **Target (to)** relationship:
 
 ### Structure in architect.json
 
+**Important**: Since v2.0, configuration is split into two files:
+
+1. **`architect.json`** (sharable in repo):
 ```json
 {
   "max_lines_per_function": 40,
@@ -207,13 +236,29 @@ A forbidden rule defines a **Source (from)** → **Target (to)** relationship:
 }
 ```
 
-#### Properties
+2. **`.architect.ai.json`** (private, in `.gitignore`):
+```json
+{
+  "api_url": "https://api.anthropic.com",
+  "api_key": "sk-ant-api03-...",
+  "model": "claude-sonnet-4-5-20250929"
+}
+```
+
+#### Properties in architect.json
 
 - **`max_lines_per_function`** (number): Line limit per method/function
 - **`architecture_pattern`** (string): Architectural pattern (`"Hexagonal"`, `"Clean"`, `"MVC"`, `"Ninguno"`)
 - **`forbidden_imports`** (array): List of rules with:
   - **`from`**: Folder/file pattern where the restriction applies
   - **`to`**: Forbidden folder/file pattern to import
+
+#### Security
+
+⚠️ **`.architect.ai.json` contains API keys and must never be shared**:
+- Make sure `.architect.ai.json` is in your `.gitignore`
+- Each developer should have their own AI configuration
+- The `architect.json` file (rules only) can be safely shared in the repo
 
 ### How the Engine Works
 
@@ -311,10 +356,17 @@ Prevent Controllers from skipping the service layer.
 ```
 
 If `architect.json` doesn't exist, the linter:
-1. Automatically detects the framework (NestJS, React, Angular, Express)
-2. Suggests an architectural pattern
-3. Proposes a line limit based on the detected framework
-4. Creates the `architect.json` file with the selected configuration
+1. Shows the welcome banner
+2. Requests AI configuration (URL, API Key, Model)
+   - Uses environment variables as defaults if available
+3. Automatically detects the framework (NestJS, React, Angular, Express)
+4. Queries AI to suggest architectural rules
+5. Presents suggestions in an interactive wizard
+6. Creates two files:
+   - `architect.json` with the selected rules
+   - `.architect.ai.json` with AI configuration
+7. Automatically updates `.gitignore` to exclude `.architect.ai.json`
+8. Automatically configures Husky and the pre-commit hook
 
 ### Automatic Mode (Subsequent Runs)
 
@@ -404,40 +456,131 @@ Yes, the linter supports both TypeScript (`.ts`, `.tsx`) and JavaScript (`.js`, 
 ### How do I update the rules after initial configuration?
 Simply edit the `architect.json` file manually. The linter will automatically load the changes on the next run.
 
-### What environment variables do I need for AI?
-For AI-assisted configuration you need:
-- `ANTHROPIC_AUTH_TOKEN`: Your Anthropic API key
-- `ANTHROPIC_BASE_URL`: API endpoint URL
+### How do I configure AI?
+The linter will request AI configuration on the first run. You can also:
+- Use environment variables: `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL`
+- Edit the `.architect.ai.json` file directly
 
-If they're not configured, the linter will indicate this on the first run.
+**Important**: The `.architect.ai.json` file must be in your `.gitignore` to avoid uploading API keys to the repository.
+
+### Can I use the linter without AI?
+Yes. You can manually create the `architect.json` file with your rules and the linter will work normally. AI is only used in the initial configuration to suggest rules.
 
 ## Example Output
 
 ### First Run (Configuration Mode)
 ```
-🏛️  WELCOME TO ARCHITECT-LINTER
-📝 No encontré 'architect.json'. Vamos a configurar tu proyecto.
-? Confirmar Framework (Detectado: NestJS) › NestJS
-? ¿Qué patrón arquitectónico quieres aplicar? › Hexagonal
-? Límite de líneas por método › 40
-✅ Configuración guardada en 'architect.json'
+╔══════════════════════════════════════════════════════════════════════════════════╗
+
+    ___    ____  ______ __  __________________  ______ ______
+   /   |  / __ \/ ____// / / /  _/_  __/ ____/ / ____//_  __/
+  / /| | / /_/ / /    / /_/ // /  / / / __/   / /      / /
+ / ___ |/ _, _/ /___ / __  // /  / / / /___  / /___   / /
+/_/  |_/_/ |_|\____//_/ /_/___/ /_/ /_____/  \____/  /_/
+
+    __     _____  _   __ ______ ______ ____
+   / /    /  _/ / | / //_  __// ____// __ \
+  / /     / /  /  |/ /  / /  / __/  / /_/ /
+ / /___ _/ /  / /|  /  / /  / /___ / _, _/
+/_____//___/ /_/ |_/  /_/  /_____//_/ |_|
+
+╚══════════════════════════════════════════════════════════════════════════════════╝
+
+                 Maintaining your code architecture ⚡
+
+📝 'architect.json' not found. Starting AI-assisted discovery...
+
+🤖 AI CONFIGURATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+To analyze your architecture with AI, you need to configure:
+  • API URL (e.g.: https://api.anthropic.com)
+  • API Key (your authentication token)
+  • Model to use (e.g.: claude-sonnet-4-5-20250929)
+
+API URL [https://api.anthropic.com]:
+API Key: ••••••••••••••••
+AI Model [claude-sonnet-4-5-20250929]:
+
+✅ AI configuration saved.
+
+🤖 The Virtual Architect has analyzed your project.
+? Suggested max lines per function [60]: 40
+? Apply the following import rules?
+  ✓ src/**/.controller.ts → src/**/.repository.ts
+     └─ Reason: Controllers should use services, not repositories
+  ✓ src/**/.service.ts → src/**/.controller.ts
+     └─ Reason: Services should not depend on controllers
+
+✅ Configuration saved successfully.
+🔐 AI configuration saved in: .architect.ai.json
+⚠️  This file contains API keys and MUST NOT be shared in the repository.
+💡 Make sure '.architect.ai.json' is in your .gitignore
 ```
 
 ### Subsequent Runs (Automatic Mode)
 ```
-🏛️  WELCOME TO ARCHITECT-LINTER
+╔══════════════════════════════════════════════════════════════════════════════════╗
 
-📌 Violación en: src/domain/user.entity.ts
+    ___    ____  ______ __  __________________  ______ ______
+   /   |  / __ \/ ____// / / /  _/_  __/ ____/ / ____//_  __/
+  / /| | / /_/ / /    / /_/ // /  / / / __/   / /      / /
+ / ___ |/ _, _/ /___ / __  // /  / / / /___  / /___   / /
+/_/  |_/_/ |_|\____//_/ /_/___/ /_/ /_____/  \____/  /_/
 
-  × Violación de Arquitectura
+    __     _____  _   __ ______ ______ ____
+   / /    /  _/ / | / //_  __// ____// __ \
+  / /     / /  /  |/ /  / /  / __/  / /_/ /
+ / /___ _/ /  / /|  /  / /  / /___ / _, _/
+/_____//___/ /_/ |_/  /_/  /_____//_/ |_|
+
+╚══════════════════════════════════════════════════════════════════════════════════╝
+
+                 Maintaining your code architecture ⚡
+
+📌 Violation in: src/domain/user.entity.ts
+
+  × Architecture Violation
    ╭─[src/domain/user.entity.ts:3:1]
    │
  3 │ import { Repository } from 'typeorm';
    │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   │ Restricción: Archivos en '/domain/' no pueden importar de '/infrastructure/'.
+   │ Restriction: Files in '/domain/' cannot import from '/infrastructure/'.
    ╰────
 
-❌ Se encontraron 1 violaciones.
+❌ 1 architecture violations found.
+```
+
+### Circular Dependency Detection
+```
+🔍 Analyzing circular dependencies...
+
+🔴 CIRCULAR DEPENDENCIES DETECTED
+
+Found 1 dependency cycle(s):
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Cycle #1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📂 Cycle paths:
+  src/services/user.service.ts →
+  src/repositories/user.repository.ts →
+  src/entities/user.entity.ts →
+  src/services/user.service.ts ↑ (closes the cycle)
+
+Circular dependency detected:
+  src/services/user.service.ts → src/repositories/user.repository.ts
+  src/repositories/user.repository.ts → src/entities/user.entity.ts
+  src/entities/user.entity.ts → src/services/user.service.ts
+
+  ⚠️  This breaks the layer hierarchy and creates circular coupling.
+
+💡 Suggested solutions:
+  1. Apply Dependency Injection to break the cycle
+  2. Extract shared logic to a third module
+  3. Use events/observers instead of direct calls
+  4. Apply Dependency Inversion Principle (DIP)
+
+⚠️  Circular dependencies found that must be resolved.
 ```
 
 ## Project Structure
@@ -445,14 +588,27 @@ If they're not configured, the linter will indicate this on the first run.
 ```
 architect-linter/
 ├── src/
-│   ├── main.rs                 # Orchestration, interactive configuration, file collection
+│   ├── main.rs                 # Main orchestration, circular dependency analysis
 │   ├── analyzer.rs             # TypeScript analysis, dynamic rule validation
-│   ├── config.rs               # Types: LinterContext, ArchPattern, Framework, ForbiddenRule
-│   └── detector.rs             # Framework detection and LOC suggestions
+│   ├── config.rs               # Types, config loading/saving in two files
+│   ├── circular.rs             # Circular dependency detection (graph + DFS)
+│   ├── ui.rs                   # Interactive UI, ASCII banner, configuration wizard
+│   ├── ai.rs                   # Claude API integration for suggestions
+│   ├── discovery.rs            # Project structure analysis
+│   ├── detector.rs             # Automatic framework detection
+│   └── cli.rs                  # Command-line argument handling
 ├── Cargo.toml                  # Dependencies and project configuration
-├── README.md                   # This documentation
+├── README.md                   # This documentation (English)
+├── README_ES.md                # Spanish documentation
 ├── CHANGELOG.md                # Version history
-├── NESTJS_INTEGRATION.md       # Git Hooks integration guide
+├── NESTJS_INTEGRATION.md       # NestJS integration guide
+├── INSTALL_WINDOWS.md          # Windows installation guide
+├── CONFIG_ERRORS_ES.md         # Configuration error guide (Spanish)
+├── architect.json.example      # Rules file example
+├── .architect.ai.json.example  # AI configuration example
+├── .gitignore.example          # Template for project .gitignore
+├── setup.sh                    # Installation script for Linux/macOS
+├── setup.ps1                   # Installation script for Windows
 └── pre-commit.example          # Husky template
 ```
 
@@ -485,11 +641,15 @@ Hardcoded prohibition: files containing `"controller"` cannot import `".reposito
 - [x] Interactive configuration on first run
 - [x] Support for patterns: Hexagonal, Clean, MVC
 - [x] Parallel processing with Rayon
-- [x] Git Hooks integration (Husky)
-- [x] Modular architecture (analyzer, config, detector)
+- [x] Automatic Git Hooks integration (Husky)
+- [x] Modular architecture (analyzer, config, detector, circular, ui, ai)
 - [x] Elegant reports with Miette
 - [x] JavaScript support (.js, .jsx)
 - [x] JSON schema validation with clear error messages
+- [x] Visual ASCII art banner enhanced
+- [x] **Separated AI configuration**: `architect.json` (rules) + `.architect.ai.json` (API keys)
+- [x] **Circular dependency detection** with graph analysis and DFS
+- [x] **Automatic Husky setup** during initial configuration
 
 ### Coming Soon 🚧
 - [ ] Report export (JSON, HTML, Markdown)
@@ -525,10 +685,15 @@ Sergio Guadarrama - [GitHub](https://github.com/sergiogswv)
 
 See [CHANGELOG.md](CHANGELOG.md) for the complete version history.
 
-### v2.0.0 (2026-02-03) - Major Update
-- 🌐 Complete English translation of documentation
-- 📚 Improved internationalization and accessibility
-- ✨ Enhanced documentation structure and clarity
+### v2.0.0 (2026-02-04) - Major Release: Circular Dependencies & Security
+- 🔴 **Circular dependency detection**: Graph-based analysis with DFS algorithm
+- 🔐 **Separated configuration**: `architect.json` (sharable) + `.architect.ai.json` (private)
+- 🎨 **Enhanced visual experience**: ASCII art banner with high-impact style
+- ⚙️ **AI configuration**: URL, API key, and model now configurable via wizard
+- 🪝 **Automatic Husky**: Pre-commit hook configuration during initial setup
+- 📁 **Example files**: `.architect.ai.json.example` and `.gitignore.example`
+- 🔒 **Security improvements**: API keys never shared in repository
+- 📚 **Updated documentation**: README, examples, and error guide
 
 ### v1.0.0 (2026-01-31) - First Stable Release
 - 🎉 First stable version ready for production

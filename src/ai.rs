@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use crate::config::AIConfig;
 
 // Estructuras para el mapeo de la respuesta de la IA
 #[derive(Deserialize, Serialize, Debug)]
@@ -18,14 +19,15 @@ pub struct SuggestedRule {
 /// Función exclusiva para el Linter: Sugiere la arquitectura inicial
 pub fn sugerir_arquitectura_inicial(
     context: crate::discovery::ProjectContext,
+    ai_config: AIConfig,
 ) -> anyhow::Result<AISuggestionResponse> {
     let prompt = format!(
-        "Eres un Arquitecto de Software Senior. Analiza este proyecto {framework} con las siguientes dependencias: {deps:?} 
+        "Eres un Arquitecto de Software Senior. Analiza este proyecto {framework} con las siguientes dependencias: {deps:?}
         y esta estructura de archivos: {files:?}.
 
         TAREA:
         Identifica el patrón (Hexagonal, Clean o MVC) y sugiere reglas de importaciones prohibidas basándote en las mejores prácticas.
-        
+
         RESPONDE EXCLUSIVAMENTE EN FORMATO JSON con esta estructura:
         {{
           \"pattern\": \"Nombre del patrón\",
@@ -39,7 +41,7 @@ pub fn sugerir_arquitectura_inicial(
         files = context.folder_structure
     );
 
-    let respuesta = consultar_claude(prompt)?;
+    let respuesta = consultar_claude(prompt, ai_config)?;
 
     // Limpieza de la respuesta para asegurar que solo procesamos el JSON
     let json_start = respuesta
@@ -53,12 +55,8 @@ pub fn sugerir_arquitectura_inicial(
 }
 
 /// Consulta la API de Claude (Anthropic) con el prompt dado
-fn consultar_claude(prompt: String) -> anyhow::Result<String> {
-    // Obtener la API key desde variable de entorno
-    let api_key = std::env::var("ANTHROPIC_AUTH_TOKEN").expect("❌ Falta ANTHROPIC_AUTH_TOKEN");
-    let base_url = std::env::var("ANTHROPIC_BASE_URL").expect("❌ Falta ANTHROPIC_BASE_URL");
-
-    let url = format!("{}/v1/messages", base_url.trim_end_matches('/'));
+fn consultar_claude(prompt: String, ai_config: AIConfig) -> anyhow::Result<String> {
+    let url = format!("{}/v1/messages", ai_config.api_url.trim_end_matches('/'));
 
     // Crear el runtime de tokio para la llamada asíncrona
     let runtime = tokio::runtime::Runtime::new()?;
@@ -67,7 +65,7 @@ fn consultar_claude(prompt: String) -> anyhow::Result<String> {
         let client = reqwest::Client::new();
 
         let body = serde_json::json!({
-            "model": "claude-opus-4-5-20251101",
+            "model": ai_config.model,
             "max_tokens": 1024,
             "messages": [{
                 "role": "user",
@@ -76,8 +74,8 @@ fn consultar_claude(prompt: String) -> anyhow::Result<String> {
         });
 
         let response = client
-            .post(url)
-            .header("x-api-key", api_key)
+            .post(&url)
+            .header("x-api-key", &ai_config.api_key)
             .header("content-type", "application/json")
             .json(&body)
             .send()
@@ -88,7 +86,7 @@ fn consultar_claude(prompt: String) -> anyhow::Result<String> {
 
         if !status.is_success() {
             return Err(anyhow::anyhow!(
-                "Error en la API de Claude ({}): {}",
+                "Error en la API ({}): {}",
                 status,
                 response_text
             ));
