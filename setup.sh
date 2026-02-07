@@ -18,6 +18,41 @@ else
     echo ""
 fi
 
+# Verificar si hay instancias de architect-linter en ejecución
+echo "🔍 Verificando procesos en ejecución..."
+RUNNING_PIDS=$(pgrep -f "architect-linter" 2>/dev/null)
+
+if [ ! -z "$RUNNING_PIDS" ]; then
+    echo ""
+    echo "⚠️  ADVERTENCIA: Hay instancias de architect-linter en ejecución."
+    echo "Es necesario cerrarlas para poder actualizar el binario."
+    echo ""
+    echo "Procesos encontrados:"
+    echo "$RUNNING_PIDS" | while read pid; do
+        echo "  - PID: $pid"
+    done
+    echo ""
+    read -p "¿Deseas cerrarlas automáticamente? (s/N): " response
+
+    if [[ "$response" =~ ^[SsYy]$ ]]; then
+        echo "Cerrando procesos..."
+        echo "$RUNNING_PIDS" | while read pid; do
+            kill -9 "$pid" 2>/dev/null
+            if [ $? -eq 0 ]; then
+                echo "  ✓ Proceso $pid cerrado."
+            fi
+        done
+        echo ""
+        sleep 1
+    else
+        echo ""
+        echo "❌ Instalación cancelada."
+        echo "Por favor cierra manualmente las instancias de architect-linter y vuelve a ejecutar este script."
+        echo ""
+        exit 1
+    fi
+fi
+
 echo "🦀 Compilando en modo release..."
 cargo build --release
 
@@ -60,7 +95,14 @@ if [ $? -eq 0 ]; then
     fi
 else
     echo "❌ Error en la compilación."
-    echo "Asegúrate de:"
-    echo "  1. Tener Rust instalado (https://rustup.rs/)"
-    echo "  2. Estar en el directorio del proyecto architect-linter"
+    echo ""
+    echo "Posibles causas:"
+    echo "  1. El archivo está en uso (cierra todas las instancias de architect-linter)"
+    echo "  2. No tienes Rust instalado (https://rustup.rs/)"
+    echo "  3. No estás en el directorio del proyecto architect-linter"
+    echo ""
+    echo "Si el problema persiste, ejecuta:"
+    echo "  cargo clean"
+    echo "Y vuelve a intentar."
+    echo ""
 fi

@@ -5,6 +5,67 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-02-06
+
+### 🎉 Multi-Language Support: PHP & Java
+
+This release expands language support from 4 to 6 programming languages with the addition of PHP and Java parsers, along with comprehensive documentation updates and code cleanup.
+
+### Added
+- **PHP Parser** (`src/parsers/php.rs`):
+  - Full Tree-sitter integration for PHP syntax
+  - Support for `use`, `require`, `require_once`, `include`, and `include_once` statements
+  - Pattern matching for PHP-specific import/require conventions
+  - PHP-specific architectural violation detection
+- **Java Parser** (`src/parsers/java.rs`):
+  - Complete Tree-sitter grammar support for Java
+  - Import statement extraction and analysis
+  - Java package path pattern matching
+  - Architectural rule enforcement for Java projects
+- **Enhanced Documentation**:
+  - Added professional project banner (`public/architect-linter-banner.png`)
+  - Multi-language support table in README (English and Spanish)
+  - Updated language coverage to 6 languages: TypeScript, JavaScript, Python, Go, PHP, Java
+  - Improved setup scripts with better error handling
+- **Tree-sitter Dependencies**:
+  - Added `tree-sitter-php = "0.23.8"` to Cargo.toml
+  - Added `tree-sitter-java = "0.23.4"` to Cargo.toml
+- **Example Configuration**:
+  - Updated `architect.json.example` with PHP and Java rule examples
+
+### Changed
+- **Setup Scripts**:
+  - Enhanced `setup.sh` with better PATH configuration for Linux/macOS
+  - Improved `setup.ps1` with robust Windows PATH handling
+  - Better error messages and installation verification
+- **Parser Architecture**:
+  - Expanded `get_parser_for_file()` to support `.php` and `.java` extensions
+  - Updated `supported_languages()` to include PHP and Java
+  - Extended `Language` enum with `Php` and `Java` variants
+- **File Discovery**:
+  - Improved file collection to include PHP and Java files
+  - Enhanced extension matching in analyzer modules
+
+### Fixed
+- **Dead Code Cleanup**:
+  - Removed unused `LanguageInfo` struct from `src/parsers/mod.rs`
+  - Eliminated unused `get_language_info()` method from `ArchitectParser` trait
+  - Removed unused `language()` method from `ArchitectParser` trait
+  - Cleaned up unnecessary imports of `Language` and `LanguageInfo` across all parser modules
+  - Reduced codebase by 72 lines of dead code across 6 files
+- **Compilation Warnings**:
+  - Fixed all `#[warn(dead_code)]` warnings
+  - Removed unused methods and structs from trait implementations
+
+### Technical Details
+- **Supported Languages**: TypeScript, JavaScript, Python, Go, PHP, Java (6 total)
+- **Lines of Code Removed**: 72 lines of dead code eliminated
+- **New Parsers**: 2 (PHP: 195 lines, Java: 185 lines)
+- **Documentation Updates**: README files in both English and Spanish
+
+### Security
+- No security changes in this release
+
 ## [2.0.0] - 2026-02-04
 
 ### 🎉 Major Release: Circular Dependencies & Security
@@ -340,6 +401,8 @@ Esta es la primera versión estable de Architect Linter, lista para uso en produ
 - SourceMap para ubicación precisa de errores
 - Filtrado inteligente de directorios durante el walkdir
 
+[3.1.0]: https://github.com/sergiogswv/architect-linter/releases/tag/v3.1.0
+[2.0.0]: https://github.com/sergiogswv/architect-linter/releases/tag/v2.0.0
 [1.0.0]: https://github.com/sergiogswv/architect-linter/releases/tag/v1.0.0
 [0.8.0]: https://github.com/sergiogswv/architect-linter/releases/tag/v0.8.0
 [0.7.0]: https://github.com/sergiogswv/architect-linter/releases/tag/v0.7.0

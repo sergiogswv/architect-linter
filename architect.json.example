@@ -14,5 +14,18 @@
       "from": "src/components/**/*.tsx",
       "to": "src/repositories/**/*.ts"
     }
+  ],
+  "ignored_paths": [
+    "node_modules/",
+    "dist/",
+    "build/",
+    ".git/",
+    "coverage/",
+    ".next/",
+    "out/",
+    ".vite/",
+    ".turbo/",
+    ".parcel-cache/",
+    ".cache/"
   ]
 }

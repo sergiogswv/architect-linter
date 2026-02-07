@@ -66,6 +66,31 @@ struct ConfigFile {
     pub max_lines_per_function: usize,
     pub architecture_pattern: ArchPattern,
     pub forbidden_imports: Vec<ForbiddenRule>,
+    #[serde(default = "default_ignored_paths")]
+    pub ignored_paths: Vec<String>,
+}
+
+/// Valores por defecto para ignored_paths
+fn default_ignored_paths() -> Vec<String> {
+    vec![
+        "node_modules/".to_string(),
+        "dist/".to_string(),
+        "build/".to_string(),
+        ".git/".to_string(),
+        "coverage/".to_string(),
+        ".next/".to_string(),
+        "out/".to_string(),
+        ".nuxt/".to_string(),
+        ".output/".to_string(),
+        ".vite/".to_string(),         // Vite cache
+        ".turbo/".to_string(),        // Turborepo cache
+        ".parcel-cache/".to_string(), // Parcel cache
+        ".cache/".to_string(),        // Generic cache
+        "target/".to_string(),        // Rust
+        "__pycache__/".to_string(),   // Python
+        ".vscode/".to_string(),       // VSCode
+        ".idea/".to_string(),         // IntelliJ
+    ]
 }
 
 /// Estructura para el archivo de configuración de IA (separado y privado)
@@ -83,6 +108,7 @@ pub struct LinterContext {
     #[allow(dead_code)]
     pub pattern: ArchPattern,
     pub forbidden_imports: Vec<ForbiddenRule>,
+    pub ignored_paths: Vec<String>,
     #[allow(dead_code)]
     pub ai_config: Option<AIConfig>,
 }
@@ -140,6 +166,7 @@ pub fn load_config(root: &Path) -> Result<LinterContext> {
         framework,
         pattern: config.architecture_pattern,
         forbidden_imports: config.forbidden_imports,
+        ignored_paths: config.ignored_paths,
         ai_config,
     })
 }
@@ -343,11 +370,15 @@ pub fn save_config_from_wizard(
 
     let framework = crate::detector::detect_framework(root);
 
+    // Obtener ignored_paths según el framework
+    let ignored_paths = get_framework_ignored_paths(&framework);
+
     // Valores por defecto para el primer architect.json
     let config = ConfigFile {
         max_lines_per_function: max_lines,
         architecture_pattern: ArchPattern::MVC, // O el que detecte la IA
         forbidden_imports: forbidden_imports.clone(),
+        ignored_paths: ignored_paths.clone(),
     };
 
     let json = serde_json::to_string_pretty(&config).into_diagnostic()?;
@@ -381,8 +412,63 @@ pub fn save_config_from_wizard(
         framework,
         pattern: config.architecture_pattern,
         forbidden_imports,
+        ignored_paths,
         ai_config,
     })
+}
+
+/// Obtiene los patrones de exclusión según el framework detectado
+pub fn get_framework_ignored_paths(framework: &Framework) -> Vec<String> {
+    let mut paths = vec![
+        "node_modules/".to_string(),
+        ".git/".to_string(),
+        "coverage/".to_string(),
+        ".vscode/".to_string(),
+        ".idea/".to_string(),
+    ];
+
+    match framework {
+        Framework::React => {
+            paths.extend(vec![
+                "build/".to_string(),
+                "dist/".to_string(),
+                ".next/".to_string(),         // Next.js
+                "out/".to_string(),
+                ".vite/".to_string(),         // Vite
+                ".turbo/".to_string(),        // Turborepo
+                ".parcel-cache/".to_string(), // Parcel
+            ]);
+        }
+        Framework::NestJS => {
+            paths.extend(vec![
+                "dist/".to_string(),
+                "build/".to_string(),
+            ]);
+        }
+        Framework::Angular => {
+            paths.extend(vec![
+                "dist/".to_string(),
+                ".angular/".to_string(),
+            ]);
+        }
+        Framework::Express => {
+            paths.extend(vec![
+                "dist/".to_string(),
+                "build/".to_string(),
+            ]);
+        }
+        Framework::Unknown => {
+            paths.extend(vec![
+                "dist/".to_string(),
+                "build/".to_string(),
+                "out/".to_string(),
+                ".vite/".to_string(),
+                ".cache/".to_string(),
+            ]);
+        }
+    }
+
+    paths
 }
 
 /// Configura husky y el hook pre-commit en el proyecto destino

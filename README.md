@@ -1,23 +1,61 @@
 # Architect Linter
 
-**Version:** 2.0.0
+<p align="center">
+  <img src="./public/architect-linter-banner.png" alt="Architect Linter Banner" width="100%">
+</p>
 
-A software architecture linter written in Rust that validates architectural rules in TypeScript/JavaScript projects through a dynamic rule engine. It ensures that the software design (Hexagonal, Clean, MVC, etc.) is respected regardless of who writes the code.
+<p align="center">
+  <img src="https://img.shields.io/badge/version-3.1.0-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/rust-2021-orange.svg" alt="Rust Edition">
+  <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg" alt="Platform">
+  <img src="https://img.shields.io/badge/language-Rust-red.svg" alt="Language">
+  <img src="https://img.shields.io/badge/powered_by-Tree--sitter-green.svg" alt="Tree-sitter">
+</p>
+
+A multi-language software architecture linter written in Rust that validates architectural rules through a dynamic rule engine. Supports **TypeScript, JavaScript, Python, Go, PHP, and Java** using Tree-sitter for fast and accurate parsing. It ensures that the software design (Hexagonal, Clean, MVC, etc.) is respected regardless of who writes the code.
 
 ## Features
 
-- **Dynamic Rule Engine**: Define custom constraints between layers via `architect.json`
-- **Circular Dependency Detection**: Analyzes the dependency graph and automatically detects cycles
-- **AI Configuration**: Architect assistant with Claude that suggests rules based on your project
-- **Separated Configuration**: `architect.json` for rules (sharable) and `.architect.ai.json` for API keys (private)
-- **Automatic Framework Detection**: Recognizes NestJS, React, Angular, Express and suggests optimal configurations
-- **Architectural Patterns**: Support for Hexagonal, Clean Architecture, MVC and more
-- **Import Validation**: Detects and blocks imports that violate the defined architecture
-- **Complexity Control**: Validates that functions don't exceed configurable line limits
-- **Parallel Processing**: Ultra-fast analysis using multi-threaded processing with Rayon
-- **Visual Reports**: Detailed and colorful errors with exact problem location
-- **Interactive Mode**: Guided configuration on first run with enhanced visual banner
-- **Git Hooks Integration**: Automatic Husky and pre-commit hook configuration
+- **🌐 Multi-Language Support**: TypeScript, JavaScript, Python, Go, PHP, and Java with Tree-sitter parsing
+- **🔧 Dynamic Rule Engine**: Define custom constraints between layers via `architect.json`
+- **🔍 Circular Dependency Detection**: Analyzes the dependency graph and automatically detects cycles
+- **🤖 AI-Powered Auto-Fix**: Automatically suggests and applies fixes for architectural violations (--fix)
+- **👁️ Watch Mode**: Real-time monitoring with incremental analysis and intelligent debouncing (300ms)
+- **📂 Smart Path Exclusion**: Automatically ignores node_modules, build folders, and framework-specific directories
+- **💬 AI Configuration**: Architect assistant with Claude that suggests rules based on your project
+- **⚙️ Separated Configuration**: `architect.json` for rules (sharable) and `.architect.ai.json` for API keys (private)
+- **🎯 Automatic Framework Detection**: Recognizes NestJS, React, Angular, Express, Django, Laravel, Spring Boot and more
+- **🏗️ Architectural Patterns**: Support for Hexagonal, Clean Architecture, MVC and more
+- **📦 Import Validation**: Detects and blocks imports that violate the defined architecture across all supported languages
+- **📏 Complexity Control**: Validates that functions don't exceed configurable line limits
+- **⚡ Parallel Processing**: Ultra-fast analysis using multi-threaded processing with Rayon
+- **📊 Visual Reports**: Detailed and colorful errors with exact problem location
+- **🎨 Interactive Mode**: Guided configuration on first run with enhanced visual banner
+- **🪝 Git Hooks Integration**: Automatic Husky and pre-commit hook configuration
+
+## Supported Languages
+
+Architect Linter uses **Tree-sitter** for fast and accurate multi-language parsing. The following languages are fully supported:
+
+| Language | Extensions | Import Syntax | Example |
+|----------|-----------|---------------|---------|
+| **TypeScript** | `.ts`, `.tsx` | `import X from 'path'` | `import { UserService } from './services/user'` |
+| **JavaScript** | `.js`, `.jsx` | `import X from 'path'` | `import UserController from '../controllers/user'` |
+| **Python** | `.py` | `import X` / `from X import Y` | `from models.user import UserModel` |
+| **Go** | `.go` | `import "package"` | `import "github.com/user/repo/models"` |
+| **PHP** | `.php` | `use Namespace\Class` | `use App\Controllers\UserController;` |
+| **Java** | `.java` | `import package.Class` | `import com.example.models.User;` |
+
+### Language-Specific Features
+
+- **TypeScript/JavaScript**: Full support for ES6 imports, dynamic imports, and type-only imports
+- **Python**: Supports both `import` and `from...import` statements, dotted module paths
+- **Go**: Package-based imports with full path support
+- **PHP**: PSR-4 autoloading compatible, supports `use`, `require`, `include` statements
+- **Java**: Package imports with wildcard support
+
+All languages share the same rule engine, allowing you to define architectural constraints consistently across polyglot projects.
 
 ## Quick Start
 
@@ -382,6 +420,44 @@ or
 cargo run -- /path/to/project
 ```
 
+### Watch Mode (Real-time Monitoring)
+
+Watch mode enables continuous monitoring of your codebase during development:
+
+```bash
+architect-linter --watch .
+```
+
+**How it works**:
+1. **Initial Analysis**: Performs a complete analysis and builds the dependency graph
+2. **File Monitoring**: Watches for changes in `.ts`, `.tsx`, `.js`, `.jsx` files
+3. **Intelligent Debouncing**: Waits 300ms after the last change to avoid excessive re-analysis
+4. **Incremental Analysis**: Only re-analyzes changed files and their affected dependencies
+5. **Partial Cycle Detection**: Runs cycle detection only on the strongly connected component (SCC) containing the changed file
+
+**Benefits**:
+- ⚡ **Fast**: Only analyzes what changed, not the entire project
+- 🎯 **Smart**: Uses graph caching to avoid redundant work
+- 🔄 **Real-time**: Instant feedback as you code
+- 💾 **Memory-efficient**: Maintains the dependency graph in memory during the session
+
+**Example output**:
+```
+🚀 Iniciando modo watch...
+📊 Análisis inicial de 42 archivos...
+✨ ¡Proyecto impecable! La arquitectura se respeta.
+👁️  Modo Watch activado
+📂 Observando: /path/to/project
+⏱️  Debounce: 300ms
+💡 Presiona Ctrl+C para detener
+
+🔄 Cambios detectados en 1 archivo(s):
+   📝 src/domain/user.ts
+
+✅ Re-análisis completado
+👁️  Esperando cambios...
+```
+
 ### CLI Arguments
 
 ```bash
@@ -391,16 +467,20 @@ architect-linter [OPTIONS] [PATH]
 **Options**:
 - `-v, --version`: Shows the linter version
 - `-h, --help`: Shows complete help
+- `-w, --watch`: Watch mode - monitors file changes and re-analyzes automatically
+- `-f, --fix`: Fix mode - AI-powered automatic fixing of architectural violations
 - **No arguments**: Interactive mode, shows menu of available projects
 - **With path**: `architect-linter /project/path` - Analyzes the specified project
 
 **Examples**:
 ```bash
-architect-linter --version          # Shows: architect-linter 2.0.0
+architect-linter --version          # Shows: architect-linter 2.3.0
 architect-linter --help             # Shows complete help
 architect-linter                    # Interactive mode
 architect-linter .                  # Analyzes current directory
 architect-linter /project/path      # Analyzes specific project
+architect-linter --watch .          # Watch mode: monitors changes and re-analyzes
+architect-linter --fix .            # Fix mode: auto-fix violations with AI
 ```
 
 ## The Complete Workflow
@@ -589,14 +669,25 @@ Circular dependency detected:
 architect-linter/
 ├── src/
 │   ├── main.rs                 # Main orchestration, circular dependency analysis
-│   ├── analyzer.rs             # TypeScript analysis, dynamic rule validation
+│   ├── analyzer.rs             # Multi-language analysis orchestrator
+│   ├── autofix.rs              # AI-powered automatic violation fixing
 │   ├── config.rs               # Types, config loading/saving in two files
 │   ├── circular.rs             # Circular dependency detection (graph + DFS)
 │   ├── ui.rs                   # Interactive UI, ASCII banner, configuration wizard
 │   ├── ai.rs                   # Claude API integration for suggestions
 │   ├── discovery.rs            # Project structure analysis
 │   ├── detector.rs             # Automatic framework detection
-│   └── cli.rs                  # Command-line argument handling
+│   ├── cli.rs                  # Command-line argument handling
+│   ├── watch.rs                # Watch mode with incremental analysis
+│   └── parsers/
+│       ├── mod.rs              # Parser module exports and factory
+│       ├── typescript.rs       # TypeScript/JavaScript parser (Tree-sitter)
+│       ├── python.rs           # Python parser (Tree-sitter)
+│       ├── go.rs               # Go parser (Tree-sitter)
+│       ├── php.rs              # PHP parser (Tree-sitter)
+│       └── java.rs             # Java parser (Tree-sitter)
+├── public/
+│   └── architect-linter-banner.png  # Project banner image
 ├── Cargo.toml                  # Dependencies and project configuration
 ├── README.md                   # This documentation (English)
 ├── README_ES.md                # Spanish documentation
@@ -614,13 +705,22 @@ architect-linter/
 
 ## Technologies
 
-- **swc_ecma_parser**: High-performance TypeScript/JavaScript parser
-- **rayon**: Automatic parallel processing
-- **miette**: Elegant diagnostic reports with context
+- **Tree-sitter**: Universal parsing library for all 6 supported languages
+  - `tree-sitter-typescript`: TypeScript/JavaScript grammar
+  - `tree-sitter-python`: Python grammar
+  - `tree-sitter-go`: Go grammar
+  - `tree-sitter-php`: PHP grammar
+  - `tree-sitter-java`: Java grammar
+- **swc_ecma_parser**: High-performance TypeScript/JavaScript parser (legacy support)
+- **rayon**: Automatic parallel processing for ultra-fast analysis
+- **miette**: Elegant diagnostic reports with rich context
+- **notify**: File system watcher for watch mode
 - **walkdir**: Efficient directory traversal
 - **dialoguer**: Interactive terminal UI
-- **indicatif**: Progress bars
+- **indicatif**: Progress bars and spinners
 - **serde_json**: JSON configuration parsing
+- **reqwest**: HTTP client for Claude API integration
+- **tokio**: Async runtime for I/O operations
 
 ## Implemented Rules
 
@@ -637,7 +737,7 @@ Hardcoded prohibition: files containing `"controller"` cannot import `".reposito
 
 ### Completed ✅
 - [x] Dynamic rule engine with `forbidden_imports`
-- [x] Automatic framework detection (NestJS, React, Angular, Express)
+- [x] Automatic framework detection (NestJS, React, Angular, Express, Django, Laravel, Spring Boot)
 - [x] Interactive configuration on first run
 - [x] Support for patterns: Hexagonal, Clean, MVC
 - [x] Parallel processing with Rayon
@@ -650,18 +750,21 @@ Hardcoded prohibition: files containing `"controller"` cannot import `".reposito
 - [x] **Separated AI configuration**: `architect.json` (rules) + `.architect.ai.json` (API keys)
 - [x] **Circular dependency detection** with graph analysis and DFS
 - [x] **Automatic Husky setup** during initial configuration
+- [x] **Watch mode** with incremental analysis and intelligent caching
+- [x] **Multi-language support**: TypeScript, JavaScript, Python, Go, PHP, Java (6 languages)
+- [x] **Tree-sitter integration** for fast and accurate parsing across all languages
+- [x] **AI-powered auto-fix** for architectural violations (--fix)
 
 ### Coming Soon 🚧
 - [ ] Report export (JSON, HTML, Markdown)
-- [ ] Watch mode for continuous development
-- [ ] Incremental analysis with cache
+- [ ] Web dashboard to visualize historical violations
+- [ ] Support for more languages (Rust, C#, Ruby, Kotlin)
 
 ### Future 🔮
 - [ ] Custom rules via Rust/WASM plugins
 - [ ] Native CI/CD integration (GitHub Actions, GitLab CI)
 - [ ] Severity configuration per rule (error, warning, info)
-- [ ] Web dashboard to visualize historical violations
-- [ ] Support for more languages (Python, Go, Java)
+- [ ] Language-specific rule templates
 
 ## Contributing
 
@@ -684,6 +787,17 @@ Sergio Guadarrama - [GitHub](https://github.com/sergiogswv)
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for the complete version history.
+
+### v3.1.0 (2026-02-06) - Multi-Language Support: PHP & Java
+- 🌐 **PHP Parser**: Full Tree-sitter integration with support for use/require/include statements
+- ☕ **Java Parser**: Complete Tree-sitter grammar support with import analysis
+- 📚 **6 Languages Total**: TypeScript, JavaScript, Python, Go, PHP, Java now fully supported
+- 🎨 **Professional Banner**: New project banner in documentation
+- 📖 **Enhanced Documentation**: Multi-language support table in English and Spanish
+- 🔧 **Improved Setup Scripts**: Better error handling and PATH configuration
+- 🧹 **Code Cleanup**: Removed 72 lines of dead code (LanguageInfo, unused methods)
+- ⚡ **Tree-sitter Dependencies**: Added tree-sitter-php and tree-sitter-java
+- 📁 **Updated Examples**: architect.json.example with PHP and Java rule examples
 
 ### v2.0.0 (2026-02-04) - Major Release: Circular Dependencies & Security
 - 🔴 **Circular dependency detection**: Graph-based analysis with DFS algorithm

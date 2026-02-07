@@ -19,6 +19,8 @@ pub struct CircularDependencyAnalyzer {
     graph: HashMap<String, Vec<String>>,
     /// Directorio raíz del proyecto
     project_root: PathBuf,
+    /// Grafo inverso: node -> [nodes que lo importan]
+    reverse_graph: HashMap<String, Vec<String>>,
 }
 
 impl CircularDependencyAnalyzer {
@@ -27,6 +29,7 @@ impl CircularDependencyAnalyzer {
         Self {
             graph: HashMap::new(),
             project_root: project_root.to_path_buf(),
+            reverse_graph: HashMap::new(),
         }
     }
 
@@ -53,7 +56,13 @@ impl CircularDependencyAnalyzer {
                         self.graph
                             .entry(current_key.clone())
                             .or_insert_with(Vec::new)
-                            .push(normalized_import);
+                            .push(normalized_import.clone());
+
+                        // Actualizar grafo inverso
+                        self.reverse_graph
+                            .entry(normalized_import)
+                            .or_insert_with(Vec::new)
+                            .push(current_key.clone());
                     }
                 }
             }
@@ -244,6 +253,171 @@ impl CircularDependencyAnalyzer {
         ));
 
         desc
+    }
+
+    /// Actualiza un archivo específico en el grafo (para watch mode)
+    pub fn update_file(&mut self, file_path: &Path, cm: &SourceMap) -> Result<()> {
+        let normalized_current = self.normalize_file_path(file_path);
+
+        // Eliminar aristas antiguas del nodo
+        self.invalidate_node(&normalized_current);
+
+        // Re-extraer imports
+        let imports = self.extract_imports(file_path, cm)?;
+
+        // Reconstruir aristas
+        self.graph.entry(normalized_current.clone()).or_insert_with(Vec::new);
+
+        for import_path in imports {
+            if let Some(resolved) = self.resolve_import_path(file_path, &import_path) {
+                let normalized_import = self.normalize_file_path(&resolved);
+
+                if self.is_internal_dependency(&normalized_import) {
+                    self.graph
+                        .entry(normalized_current.clone())
+                        .or_insert_with(Vec::new)
+                        .push(normalized_import.clone());
+
+                    // Actualizar grafo inverso
+                    self.reverse_graph
+                        .entry(normalized_import)
+                        .or_insert_with(Vec::new)
+                        .push(normalized_current.clone());
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Invalida un nodo en el grafo (elimina sus aristas)
+    pub fn invalidate_node(&mut self, node: &str) {
+        // Eliminar aristas salientes del grafo directo
+        if let Some(deps) = self.graph.get(node) {
+            // Eliminar referencias en el grafo inverso
+            for dep in deps {
+                if let Some(reverse_deps) = self.reverse_graph.get_mut(dep) {
+                    reverse_deps.retain(|n| n != node);
+                }
+            }
+        }
+        self.graph.remove(node);
+
+        // Eliminar aristas entrantes del grafo inverso
+        if let Some(reverse_deps) = self.reverse_graph.get(node) {
+            // Eliminar referencias en el grafo directo
+            for dep in reverse_deps.clone() {
+                if let Some(forward_deps) = self.graph.get_mut(&dep) {
+                    forward_deps.retain(|n| n != node);
+                }
+            }
+        }
+        self.reverse_graph.remove(node);
+    }
+
+    /// Obtiene todos los nodos conectados a un nodo dado (componente fuertemente conexo aproximado)
+    /// Útil para re-analizar solo la parte del grafo afectada por un cambio
+    pub fn get_affected_nodes(&self, start_node: &str) -> HashSet<String> {
+        let mut affected = HashSet::new();
+        let mut to_visit = vec![start_node.to_string()];
+
+        while let Some(node) = to_visit.pop() {
+            if affected.contains(&node) {
+                continue;
+            }
+            affected.insert(node.clone());
+
+            // Agregar dependencias directas (hacia adelante)
+            if let Some(deps) = self.graph.get(&node) {
+                for dep in deps {
+                    if !affected.contains(dep) {
+                        to_visit.push(dep.clone());
+                    }
+                }
+            }
+
+            // Agregar dependencias inversas (hacia atrás)
+            if let Some(reverse_deps) = self.reverse_graph.get(&node) {
+                for dep in reverse_deps {
+                    if !affected.contains(dep) {
+                        to_visit.push(dep.clone());
+                    }
+                }
+            }
+        }
+
+        affected
+    }
+
+    /// Detecta ciclos solo en un subconjunto del grafo (para análisis incremental)
+    pub fn detect_cycles_in_subgraph(&self, nodes: &HashSet<String>) -> Vec<CircularDependency> {
+        let mut cycles = Vec::new();
+        let mut visited = HashSet::new();
+        let mut rec_stack = HashSet::new();
+        let mut path = Vec::new();
+
+        for node in nodes {
+            if !visited.contains(node) {
+                self.dfs_detect_cycles_filtered(
+                    node,
+                    nodes,
+                    &mut visited,
+                    &mut rec_stack,
+                    &mut path,
+                    &mut cycles,
+                );
+            }
+        }
+
+        cycles
+    }
+
+    /// DFS para detectar ciclos solo en un subgrafo específico
+    fn dfs_detect_cycles_filtered(
+        &self,
+        node: &str,
+        allowed_nodes: &HashSet<String>,
+        visited: &mut HashSet<String>,
+        rec_stack: &mut HashSet<String>,
+        path: &mut Vec<String>,
+        cycles: &mut Vec<CircularDependency>,
+    ) {
+        visited.insert(node.to_string());
+        rec_stack.insert(node.to_string());
+        path.push(node.to_string());
+
+        if let Some(neighbors) = self.graph.get(node) {
+            for neighbor in neighbors {
+                // Solo seguir nodos que están en el subgrafo permitido
+                if !allowed_nodes.contains(neighbor) {
+                    continue;
+                }
+
+                if !visited.contains(neighbor) {
+                    self.dfs_detect_cycles_filtered(
+                        neighbor,
+                        allowed_nodes,
+                        visited,
+                        rec_stack,
+                        path,
+                        cycles,
+                    );
+                } else if rec_stack.contains(neighbor) {
+                    // Encontramos un ciclo
+                    let cycle_start = path.iter().position(|x| x == neighbor).unwrap_or(0);
+                    let mut cycle = path[cycle_start..].to_vec();
+                    cycle.push(neighbor.clone());
+
+                    cycles.push(CircularDependency {
+                        cycle: cycle.clone(),
+                        description: self.format_cycle_description(&cycle),
+                    });
+                }
+            }
+        }
+
+        path.pop();
+        rec_stack.remove(node);
     }
 }
 

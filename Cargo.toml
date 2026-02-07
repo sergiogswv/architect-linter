@@ -1,12 +1,12 @@
 [package]
 name = "architect-linter"
-version = "2.0.0"
+version = "3.1.0"
 edition = "2021"
 authors = ["Sergio Guadarrama"]
-description = "Architecture linter with dynamic rules engine for TypeScript/JavaScript projects"
+description = "Multi-language architecture linter with dynamic rules engine (TypeScript, JavaScript, Python, Go, PHP, Java)"
 license = "MIT"
 repository = "https://github.com/sergiogswv/architect-linter"
-keywords = ["linter", "architecture", "typescript", "javascript", "code-quality"]
+keywords = ["linter", "architecture", "multi-language", "code-quality", "tree-sitter"]
 categories = ["development-tools"]
 
 [dependencies]
@@ -31,3 +31,13 @@ reqwest = { version = "0.11", features = ["json"] } # Cliente HTTP
 async-trait = "0.1"
 anyhow = "1.0"
 console = "0.15"
+notify = "6.1" # File system watcher for watch mode
+
+# Tree-sitter for multi-language support
+tree-sitter = "0.22"
+tree-sitter-typescript = "0.21"
+tree-sitter-python = "0.21"
+tree-sitter-go = "0.21"
+tree-sitter-rust = "0.21"
+tree-sitter-java = "0.21"
+tree-sitter-php = "0.22"

@@ -21,6 +21,40 @@ if ($isUpdate) {
     Write-Host ""
 }
 
+# Verificar si hay instancias de architect-linter en ejecución
+Write-Host "Verificando procesos en ejecucion..." -ForegroundColor Cyan
+$runningProcesses = Get-Process -Name "architect-linter" -ErrorAction SilentlyContinue
+
+if ($runningProcesses) {
+    Write-Host ""
+    Write-Host "ADVERTENCIA: Hay instancias de architect-linter en ejecucion." -ForegroundColor Yellow
+    Write-Host "Es necesario cerrarlas para poder actualizar el binario." -ForegroundColor Yellow
+    Write-Host ""
+
+    $runningProcesses | ForEach-Object {
+        Write-Host "  - PID: $($_.Id)" -ForegroundColor White
+    }
+
+    Write-Host ""
+    $response = Read-Host "Deseas cerrarlas automaticamente? (S/N)"
+
+    if ($response -eq "S" -or $response -eq "s" -or $response -eq "Y" -or $response -eq "y") {
+        Write-Host "Cerrando procesos..." -ForegroundColor Yellow
+        $runningProcesses | ForEach-Object {
+            Stop-Process -Id $_.Id -Force
+            Write-Host "  Proceso $($_.Id) cerrado." -ForegroundColor Green
+        }
+        Write-Host ""
+        Start-Sleep -Seconds 1
+    } else {
+        Write-Host ""
+        Write-Host "Instalacion cancelada." -ForegroundColor Red
+        Write-Host "Por favor cierra manualmente las instancias de architect-linter y vuelve a ejecutar este script." -ForegroundColor Yellow
+        Write-Host ""
+        exit 1
+    }
+}
+
 Write-Host "Compilando en modo release..." -ForegroundColor Cyan
 cargo build --release
 
@@ -93,7 +127,14 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host ""
 } else {
     Write-Host "Error en la compilacion." -ForegroundColor Red
-    Write-Host "Asegurate de:" -ForegroundColor Yellow
-    Write-Host "  1. Tener Rust instalado (https://rustup.rs/)" -ForegroundColor White
-    Write-Host "  2. Estar en el directorio del proyecto architect-linter" -ForegroundColor White
+    Write-Host ""
+    Write-Host "Posibles causas:" -ForegroundColor Yellow
+    Write-Host "  1. El archivo esta en uso (cierra todas las instancias de architect-linter)" -ForegroundColor White
+    Write-Host "  2. No tienes Rust instalado (https://rustup.rs/)" -ForegroundColor White
+    Write-Host "  3. No estas en el directorio del proyecto architect-linter" -ForegroundColor White
+    Write-Host ""
+    Write-Host "Si el problema persiste, ejecuta:" -ForegroundColor Cyan
+    Write-Host "  cargo clean" -ForegroundColor White
+    Write-Host "Y vuelve a intentar." -ForegroundColor White
+    Write-Host ""
 }
