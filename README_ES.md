@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/versión-3.1.0-blue.svg" alt="Versión">
+  <img src="https://img.shields.io/badge/versión-3.2.0-blue.svg" alt="Versión">
   <img src="https://img.shields.io/badge/rust-2021-orange.svg" alt="Edición Rust">
   <img src="https://img.shields.io/badge/licencia-MIT-green.svg" alt="Licencia">
   <img src="https://img.shields.io/badge/plataforma-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg" alt="Plataforma">
@@ -20,7 +20,8 @@ Un linter de arquitectura de software multi-lenguaje escrito en Rust que valida 
 - **🌐 Soporte Multi-Lenguaje**: TypeScript, JavaScript, Python, Go, PHP y Java con análisis Tree-sitter
 - **🔧 Motor de Reglas Dinámicas**: Define restricciones personalizadas entre capas mediante `architect.json`
 - **🔍 Detección de Dependencias Cíclicas**: Analiza el grafo de dependencias y detecta ciclos automáticamente
-- **🤖 Auto-Fix con IA**: Sugiere y aplica correcciones automáticas para violaciones arquitectónicas (--fix)
+- **🤖 Auto-Fix con IA**: Sugiere y aplica correcciones automáticas para violaciones arquitectónicas (--fix) con **soporte de fallback multimodelo**
+- **🔌 IA Multi-Proveedor**: Soporte oficial para **Claude, Gemini, OpenAI, Groq, Ollama, Kimi y DeepSeek**
 - **👁️ Modo Watch**: Monitoreo en tiempo real con análisis incremental y debouncing inteligente (300ms)
 - **📂 Exclusión Inteligente de Rutas**: Ignora automáticamente node_modules, carpetas build y directorios específicos del framework
 - **💬 Configuración de IA**: Asistente arquitectónico con Claude que sugiere reglas basado en tu proyecto
@@ -784,6 +785,13 @@ Sergio Guadarrama - [GitHub](https://github.com/sergiogswv)
 ## Changelog
 
 Ver [CHANGELOG.md](CHANGELOG.md) para el historial completo de versiones.
+
+### v3.2.0 (2026-02-07) - DeepSeek y Fallback Multimodelo
+- 🌑 **Integración con DeepSeek**: Soporte oficial para la API de DeepSeek como proveedor
+- 🛡️ **Fallback Robusto**: Intenta automáticamente modelos de IA alternativos si el principal falla durante el análisis o fix
+- 🔄 **Configuración Múltiple**: Soporte para configurar varios proveedores de IA en `.architect.ai.json`
+- 🧪 **Soporte Kimi**: Añadido Moonshot AI (Kimi) a la lista de proveedores
+- ⚡ **UI Optimizada**: Mejorado el flujo de configuración de IA y descubrimiento de modelos
 
 ### v3.1.0 (2026-02-06) - Soporte Multi-Lenguaje: PHP & Java
 - 🌐 **Parser de PHP**: Integración completa con Tree-sitter con soporte para use/require/include

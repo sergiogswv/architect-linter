@@ -24,15 +24,9 @@ pub struct Violation {
 #[serde(tag = "fix_type", rename_all = "snake_case")]
 pub enum FixType {
     /// Refactorizar código (cambiar imports, crear interfaces)
-    Refactor {
-        old_code: String,
-        new_code: String,
-    },
+    Refactor { old_code: String, new_code: String },
     /// Mover archivo a otra capa
-    MoveFile {
-        from: String,
-        to: String,
-    },
+    MoveFile { from: String, to: String },
     /// Crear nueva interfaz/abstracción
     CreateInterface {
         interface_path: String,
@@ -53,10 +47,8 @@ pub struct FixSuggestion {
 pub async fn suggest_fix(
     violation: &Violation,
     project_root: &Path,
-    ai_config: &AIConfig,
+    ai_configs: &[AIConfig],
 ) -> Result<FixSuggestion> {
-    let client = reqwest::Client::new();
-
     // Obtener estructura de carpetas del proyecto
     let folder_structure = get_project_structure(project_root);
 
@@ -119,35 +111,9 @@ Responde SOLO con el JSON, sin texto adicional."#,
         violation.file_content
     );
 
-    // Hacer la petición a Claude API
-    let response = client
-        .post(&format!("{}/v1/messages", ai_config.api_url))
-        .header("x-api-key", &ai_config.api_key)
-        .header("anthropic-version", "2023-06-01")
-        .header("content-type", "application/json")
-        .json(&serde_json::json!({
-            "model": ai_config.model,
-            "max_tokens": 2048,
-            "messages": [{
-                "role": "user",
-                "content": prompt
-            }]
-        }))
-        .send()
-        .await
-        .into_diagnostic()?;
-
-    if !response.status().is_success() {
-        let error_text = response.text().await.into_diagnostic()?;
-        return Err(miette::miette!("Error de la API de Claude: {}", error_text));
-    }
-
-    let response_json: serde_json::Value = response.json().await.into_diagnostic()?;
-
-    // Extraer el contenido de la respuesta
-    let content = response_json["content"][0]["text"]
-        .as_str()
-        .ok_or_else(|| miette::miette!("Respuesta de IA inválida"))?;
+    // Hacer la petición a la IA usando el sistema de fallback
+    let content = crate::ai::consultar_ia_con_fallback(prompt, ai_configs)
+        .map_err(|e| miette::miette!("No se pudo obtener sugerencia de ningún modelo: {}", e))?;
 
     // Limpiar markdown code blocks si existen
     let json_content = content
@@ -157,10 +123,24 @@ Responde SOLO con el JSON, sin texto adicional."#,
         .trim_end_matches("```")
         .trim();
 
+    // Buscar el primer '{' y el último '}' para casos donde la IA añade texto
+    let json_start = json_content.find('{').ok_or_else(|| {
+        miette::miette!("No se encontró JSON en la respuesta de la IA: {}", content)
+    })?;
+    let json_end = json_content.rfind('}').unwrap_or(json_content.len() - 1) + 1;
+    let clean_json = &json_content[json_start..json_end];
+
     // Parsear la respuesta JSON
-    let suggestion: FixSuggestion = serde_json::from_str(json_content)
-        .into_diagnostic()
-        .map_err(|e| miette::miette!("Error parseando respuesta de IA: {}. Contenido: {}", e, json_content))?;
+    let suggestion: FixSuggestion =
+        serde_json::from_str(clean_json)
+            .into_diagnostic()
+            .map_err(|e| {
+                miette::miette!(
+                    "Error parseando respuesta de IA: {}. Contenido: {}",
+                    e,
+                    clean_json
+                )
+            })?;
 
     Ok(suggestion)
 }
@@ -172,12 +152,8 @@ pub fn apply_fix(
     project_root: &Path,
 ) -> Result<String> {
     match &suggestion.fix_type {
-        FixType::Refactor { old_code, new_code } => {
-            apply_refactor(violation, old_code, new_code)
-        }
-        FixType::MoveFile { from, to } => {
-            apply_move_file(project_root, from, to)
-        }
+        FixType::Refactor { old_code, new_code } => apply_refactor(violation, old_code, new_code),
+        FixType::MoveFile { from, to } => apply_move_file(project_root, from, to),
         FixType::CreateInterface {
             interface_path,
             interface_code,
@@ -193,11 +169,7 @@ pub fn apply_fix(
 }
 
 /// Aplica una refactorización de código
-fn apply_refactor(
-    violation: &Violation,
-    old_code: &str,
-    new_code: &str,
-) -> Result<String> {
+fn apply_refactor(violation: &Violation, old_code: &str, new_code: &str) -> Result<String> {
     let content = fs::read_to_string(&violation.file_path).into_diagnostic()?;
 
     // Reemplazar el código antiguo por el nuevo

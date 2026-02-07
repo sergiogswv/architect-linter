@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-02-07
+
+### 🎉 DeepSeek Integration & Multi-Model Fallback System
+
+This release introduces official support for DeepSeek as an AI provider and a robust fallback system that automatically tries alternative AI models if the primary one fails.
+
+### Added
+- **DeepSeek Support**:
+  - Official integration with DeepSeek API (OpenAI-compatible).
+  - Default URL configuration for `https://api.deepseek.com`.
+  - Automatic model discovery for DeepSeek endpoints.
+- **Multi-Model Fallback System**:
+  - Robust orchestration in `src/ai.rs` that catches API errors and retries with the next available configuration.
+  - Automatic re-ordering of configurations to prioritize the user-selected model.
+  - Real-time UI feedback when a model fails and a fallback is initiated.
+  - Support for multiple AI configurations in `.architect.ai.json`.
+- **New AI Providers in Wizard**:
+  - Added **Kimi (Moonshot)** and **DeepSeek** to the interactive setup selection.
+  - Streamlined provider-specific default URL suggestions.
+
+### Changed
+- **Config Architecture**:
+  - `LinterContext` now stores `ai_configs` (a collection) instead of a single `ai_config`.
+  - Updated AI discovery and auto-fix logic to leverage the fallback orchestrator.
+- **Interactive Setup**:
+  - Improved AI configuration loop allowing users to add multiple providers in a single session.
+  - Explicit optional API Key handling for local providers like Ollama.
+
+### Technical Details
+- **Fallback Logic**: Sequential retry mechanism with O(N) complexity where N is the number of configured AI providers.
+- **Standardization**: DeepSeek integration follows the OpenAI-compatible interface, ensuring consistency with Groq, Kimi, and Ollama.
+
 ## [3.1.0] - 2026-02-06
 
 ### 🎉 Multi-Language Support: PHP & Java

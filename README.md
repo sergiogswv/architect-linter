@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-3.1.0-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/version-3.2.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/rust-2021-orange.svg" alt="Rust Edition">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg" alt="Platform">
@@ -20,7 +20,8 @@ A multi-language software architecture linter written in Rust that validates arc
 - **🌐 Multi-Language Support**: TypeScript, JavaScript, Python, Go, PHP, and Java with Tree-sitter parsing
 - **🔧 Dynamic Rule Engine**: Define custom constraints between layers via `architect.json`
 - **🔍 Circular Dependency Detection**: Analyzes the dependency graph and automatically detects cycles
-- **🤖 AI-Powered Auto-Fix**: Automatically suggests and applies fixes for architectural violations (--fix)
+- **🤖 AI-Powered Auto-Fix**: Automatically suggests and applies fixes for architectural violations (--fix) with **multi-model fallback support**
+- **🔌 Multi-Provider AI**: Official support for **Claude, Gemini, OpenAI, Groq, Ollama, Kimi, and DeepSeek**
 - **👁️ Watch Mode**: Real-time monitoring with incremental analysis and intelligent debouncing (300ms)
 - **📂 Smart Path Exclusion**: Automatically ignores node_modules, build folders, and framework-specific directories
 - **💬 AI Configuration**: Architect assistant with Claude that suggests rules based on your project
@@ -787,6 +788,13 @@ Sergio Guadarrama - [GitHub](https://github.com/sergiogswv)
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for the complete version history.
+
+### v3.2.0 (2026-02-07) - DeepSeek & Multi-Model Fallback
+- 🌑 **DeepSeek Integration**: Official support for DeepSeek API as a provider
+- 🛡️ **Robust Fallback**: Automatically tries alternative AI models if the primary one fails during analysis or fixes
+- 🔄 **Multi-Configuration**: Support for multiple AI providers in `.architect.ai.json`
+- 🧪 **Kimi Support**: Added Moonshot AI (Kimi) to the provider list
+- ⚡ **Optimized UI**: Streamlined AI configuration loop and model discovery
 
 ### v3.1.0 (2026-02-06) - Multi-Language Support: PHP & Java
 - 🌐 **PHP Parser**: Full Tree-sitter integration with support for use/require/include statements

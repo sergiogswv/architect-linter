@@ -42,9 +42,36 @@ pub struct ForbiddenRule {
     pub to: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum AIProvider {
+    Claude,
+    Gemini,
+    OpenAI,
+    Groq,
+    Ollama,
+    Kimi,
+    DeepSeek,
+}
+
+impl AIProvider {
+    pub fn as_str(&self) -> &str {
+        match self {
+            AIProvider::Claude => "Claude",
+            AIProvider::Gemini => "Gemini",
+            AIProvider::OpenAI => "OpenAI",
+            AIProvider::Groq => "Groq",
+            AIProvider::Ollama => "Ollama",
+            AIProvider::Kimi => "Kimi",
+            AIProvider::DeepSeek => "DeepSeek",
+        }
+    }
+}
+
 /// Configuración de IA para análisis arquitectónico
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AIConfig {
+    pub name: String,
+    pub provider: AIProvider,
     pub api_url: String,
     pub api_key: String,
     pub model: String,
@@ -53,9 +80,11 @@ pub struct AIConfig {
 impl Default for AIConfig {
     fn default() -> Self {
         Self {
+            name: "Default Claude".to_string(),
+            provider: AIProvider::Claude,
             api_url: "https://api.anthropic.com".to_string(),
             api_key: String::new(),
-            model: "claude-sonnet-4-5-20250929".to_string(),
+            model: "claude-3-7-sonnet-20250219".to_string(),
         }
     }
 }
@@ -93,12 +122,11 @@ fn default_ignored_paths() -> Vec<String> {
     ]
 }
 
-/// Estructura para el archivo de configuración de IA (separado y privado)
+/// Estructura para el archivo de configuración de IA (ahora soporta múltiples)
 #[derive(Debug, Serialize, Deserialize)]
 struct AIConfigFile {
-    pub api_url: String,
-    pub api_key: String,
-    pub model: String,
+    pub configs: Vec<AIConfig>,
+    pub selected_name: String,
 }
 
 pub struct LinterContext {
@@ -110,7 +138,7 @@ pub struct LinterContext {
     pub forbidden_imports: Vec<ForbiddenRule>,
     pub ignored_paths: Vec<String>,
     #[allow(dead_code)]
-    pub ai_config: Option<AIConfig>,
+    pub ai_configs: Vec<AIConfig>,
 }
 
 /// CARGA SILENCIOSA: Lee architect.json y .architect.ai.json y los convierte en contexto
@@ -118,11 +146,15 @@ pub fn load_config(root: &Path) -> Result<LinterContext> {
     let config_path = root.join("architect.json");
 
     // Leer el archivo de reglas
-    let content = fs::read_to_string(&config_path)
-        .map_err(|e| ConfigError::new(
+    let content = fs::read_to_string(&config_path).map_err(|e| {
+        ConfigError::new(
             format!("No se pudo leer architect.json: {}", e),
-            format!("Asegúrate de que el archivo existe en: {}", config_path.display())
-        ))?;
+            format!(
+                "Asegúrate de que el archivo existe en: {}",
+                config_path.display()
+            ),
+        )
+    })?;
 
     // Validar que es JSON válido
     let json_value: serde_json::Value = serde_json::from_str(&content)
@@ -135,27 +167,31 @@ pub fn load_config(root: &Path) -> Result<LinterContext> {
     validate_schema(&json_value)?;
 
     // Ahora sí deserializar con mejor manejo de errores
-    let config: ConfigFile = serde_json::from_value(json_value)
-        .map_err(|e| ConfigError::new(
+    let config: ConfigFile = serde_json::from_value(json_value).map_err(|e| {
+        ConfigError::new(
             format!("Error en la estructura: {}", e),
-            "Revisa que todos los campos tengan el tipo correcto.".to_string()
-        ))?;
+            "Revisa que todos los campos tengan el tipo correcto.".to_string(),
+        )
+    })?;
 
     // Validar los valores
     validate_config_values(&config)?;
 
     // Cargar configuración de IA (si existe, es opcional)
     let ai_config_path = root.join(".architect.ai.json");
-    let ai_config = if ai_config_path.exists() {
+    let ai_configs = if ai_config_path.exists() {
         let ai_content = fs::read_to_string(&ai_config_path).into_diagnostic()?;
         let ai_file: AIConfigFile = serde_json::from_str(&ai_content).into_diagnostic()?;
-        Some(AIConfig {
-            api_url: ai_file.api_url,
-            api_key: ai_file.api_key,
-            model: ai_file.model,
-        })
+
+        let mut configs = ai_file.configs;
+        // Mover la configuración seleccionada al principio de la lista
+        if let Some(pos) = configs.iter().position(|c| c.name == ai_file.selected_name) {
+            let selected = configs.remove(pos);
+            configs.insert(0, selected);
+        }
+        configs
     } else {
-        None
+        Vec::new()
     };
 
     // Re-detectamos el framework para el contexto actual
@@ -167,45 +203,52 @@ pub fn load_config(root: &Path) -> Result<LinterContext> {
         pattern: config.architecture_pattern,
         forbidden_imports: config.forbidden_imports,
         ignored_paths: config.ignored_paths,
-        ai_config,
+        ai_configs,
     })
 }
 
 /// Valida que el JSON tenga todos los campos requeridos
 fn validate_schema(json: &serde_json::Value) -> Result<()> {
-    let obj = json.as_object().ok_or_else(|| ConfigError::new(
-        "El archivo debe ser un objeto JSON".to_string(),
-        "El archivo architect.json debe empezar y terminar con llaves { }".to_string()
-    ))?;
+    let obj = json.as_object().ok_or_else(|| {
+        ConfigError::new(
+            "El archivo debe ser un objeto JSON".to_string(),
+            "El archivo architect.json debe empezar y terminar con llaves { }".to_string(),
+        )
+    })?;
 
     // Validar campo: max_lines_per_function
     if !obj.contains_key("max_lines_per_function") {
         return Err(ConfigError::new(
             "Falta el campo requerido: max_lines_per_function".to_string(),
-            "Agrega este campo con un número, ejemplo: \"max_lines_per_function\": 40".to_string()
-        ).into());
+            "Agrega este campo con un número, ejemplo: \"max_lines_per_function\": 40".to_string(),
+        )
+        .into());
     }
 
     if !obj["max_lines_per_function"].is_number() {
         return Err(ConfigError::new(
             "El campo 'max_lines_per_function' debe ser un número".to_string(),
-            "Ejemplo correcto: \"max_lines_per_function\": 40".to_string()
-        ).into());
+            "Ejemplo correcto: \"max_lines_per_function\": 40".to_string(),
+        )
+        .into());
     }
 
     // Validar campo: architecture_pattern
     if !obj.contains_key("architecture_pattern") {
         return Err(ConfigError::new(
             "Falta el campo requerido: architecture_pattern".to_string(),
-            "Agrega este campo. Valores válidos: \"Hexagonal\", \"Clean\", \"MVC\", \"Ninguno\"".to_string()
-        ).into());
+            "Agrega este campo. Valores válidos: \"Hexagonal\", \"Clean\", \"MVC\", \"Ninguno\""
+                .to_string(),
+        )
+        .into());
     }
 
     if !obj["architecture_pattern"].is_string() {
         return Err(ConfigError::new(
             "El campo 'architecture_pattern' debe ser un string".to_string(),
-            "Valores válidos: \"Hexagonal\", \"Clean\", \"MVC\", \"Ninguno\"".to_string()
-        ).into());
+            "Valores válidos: \"Hexagonal\", \"Clean\", \"MVC\", \"Ninguno\"".to_string(),
+        )
+        .into());
     }
 
     // Validar que el patrón sea uno de los valores aceptados
@@ -214,16 +257,18 @@ fn validate_schema(json: &serde_json::Value) -> Result<()> {
     if !valid_patterns.contains(&pattern_str) {
         return Err(ConfigError::new(
             format!("Patrón arquitectónico inválido: '{}'", pattern_str),
-            format!("Valores válidos: {}", valid_patterns.join(", "))
-        ).into());
+            format!("Valores válidos: {}", valid_patterns.join(", ")),
+        )
+        .into());
     }
 
     // Validar campo: forbidden_imports
     if !obj.contains_key("forbidden_imports") {
         return Err(ConfigError::new(
             "Falta el campo requerido: forbidden_imports".to_string(),
-            "Agrega este campo como un array, ejemplo: \"forbidden_imports\": []".to_string()
-        ).into());
+            "Agrega este campo como un array, ejemplo: \"forbidden_imports\": []".to_string(),
+        )
+        .into());
     }
 
     if !obj["forbidden_imports"].is_array() {
@@ -238,9 +283,14 @@ fn validate_schema(json: &serde_json::Value) -> Result<()> {
     for (index, rule) in rules.iter().enumerate() {
         if !rule.is_object() {
             return Err(ConfigError::new(
-                format!("La regla #{} en forbidden_imports no es un objeto", index + 1),
-                "Cada regla debe tener la forma: {\"from\": \"patrón1\", \"to\": \"patrón2\"}".to_string()
-            ).into());
+                format!(
+                    "La regla #{} en forbidden_imports no es un objeto",
+                    index + 1
+                ),
+                "Cada regla debe tener la forma: {\"from\": \"patrón1\", \"to\": \"patrón2\"}"
+                    .to_string(),
+            )
+            .into());
         }
 
         let rule_obj = rule.as_object().unwrap();
@@ -248,29 +298,41 @@ fn validate_schema(json: &serde_json::Value) -> Result<()> {
         if !rule_obj.contains_key("from") {
             return Err(ConfigError::new(
                 format!("La regla #{} no tiene el campo 'from'", index + 1),
-                "Ejemplo: {\"from\": \"src/components/**\", \"to\": \"src/services/**\"}".to_string()
-            ).into());
+                "Ejemplo: {\"from\": \"src/components/**\", \"to\": \"src/services/**\"}"
+                    .to_string(),
+            )
+            .into());
         }
 
         if !rule_obj.contains_key("to") {
             return Err(ConfigError::new(
                 format!("La regla #{} no tiene el campo 'to'", index + 1),
-                "Ejemplo: {\"from\": \"src/components/**\", \"to\": \"src/services/**\"}".to_string()
-            ).into());
+                "Ejemplo: {\"from\": \"src/components/**\", \"to\": \"src/services/**\"}"
+                    .to_string(),
+            )
+            .into());
         }
 
         if !rule_obj["from"].is_string() {
             return Err(ConfigError::new(
-                format!("El campo 'from' en la regla #{} debe ser un string", index + 1),
-                "Ejemplo: \"from\": \"src/components/**\"".to_string()
-            ).into());
+                format!(
+                    "El campo 'from' en la regla #{} debe ser un string",
+                    index + 1
+                ),
+                "Ejemplo: \"from\": \"src/components/**\"".to_string(),
+            )
+            .into());
         }
 
         if !rule_obj["to"].is_string() {
             return Err(ConfigError::new(
-                format!("El campo 'to' en la regla #{} debe ser un string", index + 1),
-                "Ejemplo: \"to\": \"src/services/**\"".to_string()
-            ).into());
+                format!(
+                    "El campo 'to' en la regla #{} debe ser un string",
+                    index + 1
+                ),
+                "Ejemplo: \"to\": \"src/services/**\"".to_string(),
+            )
+            .into());
         }
     }
 
@@ -283,15 +345,21 @@ fn validate_config_values(config: &ConfigFile) -> Result<()> {
     if config.max_lines_per_function == 0 {
         return Err(ConfigError::new(
             "max_lines_per_function no puede ser 0".to_string(),
-            "Usa un valor entre 10 y 500. Recomendado: 20-60 según tu framework.".to_string()
-        ).into());
+            "Usa un valor entre 10 y 500. Recomendado: 20-60 según tu framework.".to_string(),
+        )
+        .into());
     }
 
     if config.max_lines_per_function > 1000 {
         return Err(ConfigError::new(
-            format!("max_lines_per_function es muy alto: {}", config.max_lines_per_function),
-            "Un valor tan alto desactiva efectivamente esta validación. Máximo recomendado: 500".to_string()
-        ).into());
+            format!(
+                "max_lines_per_function es muy alto: {}",
+                config.max_lines_per_function
+            ),
+            "Un valor tan alto desactiva efectivamente esta validación. Máximo recomendado: 500"
+                .to_string(),
+        )
+        .into());
     }
 
     // Validar que forbidden_imports tenga reglas únicas (no duplicadas)
@@ -300,8 +368,9 @@ fn validate_config_values(config: &ConfigFile) -> Result<()> {
             if i != j && rule1.from == rule2.from && rule1.to == rule2.to {
                 return Err(ConfigError::new(
                     format!("Regla duplicada: from '{}' to '{}'", rule1.from, rule1.to),
-                    "Elimina una de las reglas duplicadas en forbidden_imports.".to_string()
-                ).into());
+                    "Elimina una de las reglas duplicadas en forbidden_imports.".to_string(),
+                )
+                .into());
             }
         }
     }
@@ -330,20 +399,40 @@ pub fn setup_or_load_config(root: &Path) -> Result<std::sync::Arc<LinterContext>
     println!("📝 No encontré 'architect.json'. Iniciando descubrimiento asistido por IA...\n");
 
     // 0. Pedir configuración de IA si no existe
-    let ai_config = crate::ui::ask_ai_config()?;
+    let ai_configs = crate::ui::ask_ai_configs()?;
+
+    // Seleccionar cuál usar para el descubrimiento inicial
+    let ai_config = if ai_configs.len() > 1 {
+        let names: Vec<String> = ai_configs.iter().map(|c| c.name.clone()).collect();
+        let selection = dialoguer::Select::with_theme(&dialoguer::theme::ColorfulTheme::default())
+            .with_prompt("¿Qué modelo deseas usar para el descubrimiento inicial?")
+            .items(&names)
+            .default(0)
+            .interact()
+            .into_diagnostic()?;
+        ai_configs[selection].clone()
+    } else {
+        ai_configs[0].clone()
+    };
 
     // 1. Discovery (Input local)
     let project_info = crate::discovery::get_architecture_snapshot(root);
 
     // 2. IA (Procesamiento inteligente)
-    let suggestions = crate::ai::sugerir_arquitectura_inicial(project_info, ai_config.clone())
+    let suggestions = crate::ai::sugerir_arquitectura_inicial(project_info, ai_configs.clone())
         .map_err(|e| miette::miette!("Error consultando la IA: {}", e))?;
 
     // 3. UI (Wizard de confirmación)
     let (selected_rules, max_lines) = crate::ui::ask_user_to_confirm_rules(suggestions)?;
 
     // 4. Config (Persistencia)
-    let final_ctx = save_config_from_wizard(root, selected_rules, max_lines, Some(ai_config))?;
+    let final_ctx = save_config_from_wizard(
+        root,
+        selected_rules,
+        max_lines,
+        ai_configs,
+        ai_config.name.clone(),
+    )?;
 
     println!("✅ Configuración guardada exitosamente.\n");
     Ok(Arc::new(final_ctx))
@@ -354,7 +443,8 @@ pub fn save_config_from_wizard(
     root: &Path,
     rules: Vec<SuggestedRule>,
     max_lines: usize,
-    ai_config: Option<AIConfig>,
+    ai_configs: Vec<AIConfig>,
+    selected_name: String,
 ) -> Result<LinterContext> {
     // 1. Guardar architect.json (reglas - compartible en el repo)
     let config_path = root.join("architect.json");
@@ -385,17 +475,16 @@ pub fn save_config_from_wizard(
     fs::write(&config_path, json).into_diagnostic()?;
 
     // 2. Guardar .architect.ai.json (config de IA - PRIVADO, en .gitignore)
-    if let Some(ai_cfg) = ai_config.clone() {
+    if !ai_configs.is_empty() {
         let ai_config_path = root.join(".architect.ai.json");
         let ai_config_file = AIConfigFile {
-            api_url: ai_cfg.api_url,
-            api_key: ai_cfg.api_key,
-            model: ai_cfg.model,
+            configs: ai_configs.clone(),
+            selected_name: selected_name.clone(),
         };
         let ai_json = serde_json::to_string_pretty(&ai_config_file).into_diagnostic()?;
         fs::write(&ai_config_path, ai_json).into_diagnostic()?;
 
-        println!("🔐 Configuración de IA guardada en: .architect.ai.json");
+        println!("🔐 Configuraciones de IA guardadas en: .architect.ai.json");
         println!("⚠️  Este archivo contiene API keys y NO debe ser compartido en el repositorio.");
 
         // Actualizar .gitignore automáticamente
@@ -413,7 +502,7 @@ pub fn save_config_from_wizard(
         pattern: config.architecture_pattern,
         forbidden_imports,
         ignored_paths,
-        ai_config,
+        ai_configs,
     })
 }
 
@@ -432,7 +521,7 @@ pub fn get_framework_ignored_paths(framework: &Framework) -> Vec<String> {
             paths.extend(vec![
                 "build/".to_string(),
                 "dist/".to_string(),
-                ".next/".to_string(),         // Next.js
+                ".next/".to_string(), // Next.js
                 "out/".to_string(),
                 ".vite/".to_string(),         // Vite
                 ".turbo/".to_string(),        // Turborepo
@@ -440,22 +529,13 @@ pub fn get_framework_ignored_paths(framework: &Framework) -> Vec<String> {
             ]);
         }
         Framework::NestJS => {
-            paths.extend(vec![
-                "dist/".to_string(),
-                "build/".to_string(),
-            ]);
+            paths.extend(vec!["dist/".to_string(), "build/".to_string()]);
         }
         Framework::Angular => {
-            paths.extend(vec![
-                "dist/".to_string(),
-                ".angular/".to_string(),
-            ]);
+            paths.extend(vec!["dist/".to_string(), ".angular/".to_string()]);
         }
         Framework::Express => {
-            paths.extend(vec![
-                "dist/".to_string(),
-                "build/".to_string(),
-            ]);
+            paths.extend(vec!["dist/".to_string(), "build/".to_string()]);
         }
         Framework::Unknown => {
             paths.extend(vec![
@@ -516,7 +596,8 @@ fi
 
 echo "✅ Validación de arquitectura exitosa"
 exit 0
-"#.to_string();
+"#
+                .to_string();
 
                 // Escribir el hook
                 fs::write(&pre_commit_path, pre_commit_content).into_diagnostic()?;
@@ -549,7 +630,8 @@ if errorlevel 1 (
 
 echo ✅ Validación de arquitectura exitosa
 exit /b 0
-"#.to_string();
+"#
+                    .to_string();
                     let _ = fs::write(&pre_commit_bat, pre_commit_bat_content);
                 }
 
@@ -574,7 +656,8 @@ exit /b 0
 /// Actualiza el .gitignore del proyecto para incluir .architect.ai.json
 fn update_gitignore(root: &Path) -> Result<()> {
     let gitignore_path = root.join(".gitignore");
-    let entry_to_add = "# Architect Linter - AI Configuration (contains API keys)\n.architect.ai.json";
+    let entry_to_add =
+        "# Architect Linter - AI Configuration (contains API keys)\n.architect.ai.json";
 
     // Verificar si el archivo existe
     if gitignore_path.exists() {
@@ -599,7 +682,8 @@ fn update_gitignore(root: &Path) -> Result<()> {
         println!("✅ .architect.ai.json agregado al .gitignore");
     } else {
         // Crear el .gitignore con la entrada
-        let mut gitignore_content = String::from("# Architect Linter - AI Configuration (contains API keys)\n");
+        let mut gitignore_content =
+            String::from("# Architect Linter - AI Configuration (contains API keys)\n");
         gitignore_content.push_str(".architect.ai.json\n");
 
         fs::write(&gitignore_path, gitignore_content).into_diagnostic()?;

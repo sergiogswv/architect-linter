@@ -159,11 +159,17 @@ fn run_watch_mode(project_root: &PathBuf, ctx: Arc<config::LinterContext>) -> Re
     let cycles = analyzer.detect_cycles();
     if !cycles.is_empty() {
         circular::print_circular_dependency_report(&cycles);
-        println!("\n⚠️  Se encontraron {} dependencias cíclicas.", cycles.len());
+        println!(
+            "\n⚠️  Se encontraron {} dependencias cíclicas.",
+            cycles.len()
+        );
     }
 
     if error_count > 0 {
-        println!("\n❌ Se encontraron {} violaciones arquitectónicas.", error_count);
+        println!(
+            "\n❌ Se encontraron {} violaciones arquitectónicas.",
+            error_count
+        );
     } else {
         println!("\n✨ ¡Proyecto impecable! La arquitectura se respeta.");
     }
@@ -200,11 +206,15 @@ fn run_watch_mode(project_root: &PathBuf, ctx: Arc<config::LinterContext>) -> Re
 
             // Análisis incremental de ciclos
             // Normalizar path relativo al proyecto
-            let normalized_path = if let Ok(relative) = file_path.strip_prefix(project_root.as_ref()) {
-                relative.to_string_lossy().replace('\\', "/").to_lowercase()
-            } else {
-                file_path.to_string_lossy().replace('\\', "/").to_lowercase()
-            };
+            let normalized_path =
+                if let Ok(relative) = file_path.strip_prefix(project_root.as_ref()) {
+                    relative.to_string_lossy().replace('\\', "/").to_lowercase()
+                } else {
+                    file_path
+                        .to_string_lossy()
+                        .replace('\\', "/")
+                        .to_lowercase()
+                };
 
             let affected_nodes = analyzer.get_affected_nodes(&normalized_path);
 
@@ -212,13 +222,19 @@ fn run_watch_mode(project_root: &PathBuf, ctx: Arc<config::LinterContext>) -> Re
                 let cycles = analyzer.detect_cycles_in_subgraph(&affected_nodes);
                 if !cycles.is_empty() {
                     circular::print_circular_dependency_report(&cycles);
-                    println!("\n⚠️  Se encontraron {} dependencias cíclicas.", cycles.len());
+                    println!(
+                        "\n⚠️  Se encontraron {} dependencias cíclicas.",
+                        cycles.len()
+                    );
                 }
             }
         }
 
         if error_count > 0 {
-            println!("\n❌ Se encontraron {} violaciones arquitectónicas.", error_count);
+            println!(
+                "\n❌ Se encontraron {} violaciones arquitectónicas.",
+                error_count
+            );
         } else {
             println!("\n✨ Todo correcto!");
         }
@@ -236,12 +252,12 @@ fn run_fix_mode(project_root: &PathBuf, ctx: Arc<config::LinterContext>) -> Resu
     println!("🔧 Modo Fix: Auto-reparación con IA\n");
 
     // Verificar que hay configuración de IA
-    let ai_config = ctx.ai_config.as_ref().ok_or_else(|| {
-        miette::miette!(
+    if ctx.ai_configs.is_empty() {
+        return Err(miette::miette!(
             "No se encontró configuración de IA (.architect.ai.json).\n\
              El modo --fix requiere configuración de IA para funcionar."
-        )
-    })?;
+        ));
+    }
 
     // Recolectar archivos
     let files = discovery::collect_files(project_root, &ctx.ignored_paths);
@@ -277,7 +293,10 @@ fn run_fix_mode(project_root: &PathBuf, ctx: Arc<config::LinterContext>) -> Resu
         return Ok(());
     }
 
-    println!("🔍 Encontradas {} violación(es) arquitectónicas\n", all_violations.len());
+    println!(
+        "🔍 Encontradas {} violación(es) arquitectónicas\n",
+        all_violations.len()
+    );
 
     // Procesar cada violación
     let mut fixed_count = 0;
@@ -289,23 +308,25 @@ fn run_fix_mode(project_root: &PathBuf, ctx: Arc<config::LinterContext>) -> Resu
         println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         println!("📄 Archivo: {}", violation.file_path.display());
         println!("📍 Línea: {}", violation.line_number);
-        println!("🚫 Regla violada: '{}' no puede importar de '{}'",
-                 violation.rule.from, violation.rule.to);
+        println!(
+            "🚫 Regla violada: '{}' no puede importar de '{}'",
+            violation.rule.from, violation.rule.to
+        );
         println!("💥 Import ofensivo: {}", violation.offensive_import);
         println!();
 
-        // Consultar a la IA
-        println!("🤖 Consultando a Claude AI para sugerencia de fix...");
+        // Consultar a la IA con fallback
+        println!("🤖 Consultando sugerencia de fix (usando sistema de fallback multimodelo)...");
 
         let runtime = tokio::runtime::Runtime::new().into_diagnostic()?;
         let suggestion = match runtime.block_on(autofix::suggest_fix(
             violation,
             project_root,
-            ai_config,
+            &ctx.ai_configs,
         )) {
             Ok(s) => s,
-            Err(e) => {
-                eprintln!("❌ Error consultando IA: {}", e);
+            Err(_e) => {
+                eprintln!("❌ No se pudo obtener ninguna sugerencia de los modelos configurados.");
                 println!("⏭️  Saltando esta violación...\n");
                 skipped_count += 1;
                 continue;
@@ -314,7 +335,10 @@ fn run_fix_mode(project_root: &PathBuf, ctx: Arc<config::LinterContext>) -> Resu
 
         // Mostrar la sugerencia
         println!();
-        println!("💡 Sugerencia de la IA (confianza: {}):", suggestion.confidence);
+        println!(
+            "💡 Sugerencia de la IA (confianza: {}):",
+            suggestion.confidence
+        );
         println!("{}", suggestion.explanation);
         println!();
 
@@ -331,7 +355,11 @@ fn run_fix_mode(project_root: &PathBuf, ctx: Arc<config::LinterContext>) -> Resu
                 println!("  De: {}", from);
                 println!("  A:  {}", to);
             }
-            autofix::FixType::CreateInterface { interface_path, interface_code, updated_import } => {
+            autofix::FixType::CreateInterface {
+                interface_path,
+                interface_code,
+                updated_import,
+            } => {
                 println!("🎯 Tipo: Crear interfaz");
                 println!("  Nueva interfaz: {}", interface_path);
                 println!("  Código: {} líneas", interface_code.lines().count());

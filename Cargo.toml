@@ -1,6 +1,6 @@
 [package]
 name = "architect-linter"
-version = "3.1.0"
+version = "3.2.0"
 edition = "2021"
 authors = ["Sergio Guadarrama"]
 description = "Multi-language architecture linter with dynamic rules engine (TypeScript, JavaScript, Python, Go, PHP, Java)"

@@ -53,46 +53,146 @@ pub fn print_banner() {
     println!();
 }
 
-/// Solicita al usuario la configuración de IA
-pub fn ask_ai_config() -> Result<AIConfig> {
-    println!("🤖 CONFIGURACIÓN DE LA IA");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("Para analizar tu arquitectura con IA, necesitas configurar:");
-    println!("  • URL de la API (ej: https://api.anthropic.com)");
-    println!("  • API Key (tu token de autenticación)");
-    println!("  • Modelo a usar (ej: claude-sonnet-4-5-20250929)");
-    println!();
+/// Solicita al usuario una o más configuraciones de IA
+pub fn ask_ai_configs() -> Result<Vec<AIConfig>> {
+    let mut configs = Vec::new();
 
-    // Verificar si existen variables de entorno para usar como defaults
-    let default_url = env::var("ANTHROPIC_BASE_URL").ok();
-    let default_key = env::var("ANTHROPIC_AUTH_TOKEN").ok();
-    let default_model = env::var("ANTHROPIC_MODEL").ok();
+    loop {
+        println!("🤖 CONFIGURACIÓN DE LA IA (#{})", configs.len() + 1);
+        println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
-    let api_url: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("URL de la API")
-        .default(default_url.unwrap_or_else(|| "https://api.anthropic.com".to_string()))
-        .interact_text()
-        .into_diagnostic()?;
+        // Pedir un nombre para esta configuración
+        let name: String = Input::with_theme(&ColorfulTheme::default())
+            .with_prompt("Nombre para esta configuración (ej: Claude Pro, Ollama Local)")
+            .interact_text()
+            .into_diagnostic()?;
 
-    let api_key: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("API Key")
-        .default(default_key.unwrap_or_else(|| String::new()))
-        .interact_text()
-        .into_diagnostic()?;
+        let providers = vec![
+            "Claude (Anthropic)",
+            "Gemini (Google)",
+            "OpenAI",
+            "Groq",
+            "Ollama (Local)",
+            "Kimi (Moonshot)",
+            "DeepSeek",
+        ];
+        let selection = Select::with_theme(&ColorfulTheme::default())
+            .with_prompt("Selecciona un proveedor de IA")
+            .items(&providers)
+            .default(0)
+            .interact()
+            .into_diagnostic()?;
 
-    let model: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Modelo de IA")
-        .default(default_model.unwrap_or_else(|| "claude-sonnet-4-5-20250929".to_string()))
-        .interact_text()
-        .into_diagnostic()?;
+        let provider = match selection {
+            0 => crate::config::AIProvider::Claude,
+            1 => crate::config::AIProvider::Gemini,
+            2 => crate::config::AIProvider::OpenAI,
+            3 => crate::config::AIProvider::Groq,
+            4 => crate::config::AIProvider::Ollama,
+            5 => crate::config::AIProvider::Kimi,
+            6 => crate::config::AIProvider::DeepSeek,
+            _ => unreachable!(),
+        };
 
-    println!("✅ Configuración de IA guardada.\n");
+        // URLs base según el proveedor (Hardcoded)
+        let default_url = match provider {
+            crate::config::AIProvider::Claude => "https://api.anthropic.com".to_string(),
+            crate::config::AIProvider::Gemini => {
+                "https://generativelanguage.googleapis.com".to_string()
+            }
+            crate::config::AIProvider::OpenAI => "https://api.openai.com/v1".to_string(),
+            crate::config::AIProvider::Groq => "https://api.groq.com/openai/v1".to_string(),
+            crate::config::AIProvider::Ollama => "http://localhost:11434/v1".to_string(),
+            crate::config::AIProvider::Kimi => "https://api.moonshot.ai/v1".to_string(),
+            crate::config::AIProvider::DeepSeek => "https://api.deepseek.com".to_string(),
+        };
 
-    Ok(AIConfig {
-        api_url,
-        api_key,
-        model,
-    })
+        // Verificar si existen variables de entorno
+        let env_url = env::var(format!("{}_BASE_URL", provider.as_str().to_uppercase())).ok();
+        let env_key = env::var(format!("{}_API_KEY", provider.as_str().to_uppercase())).ok();
+
+        // Solo pedimos la URL si es Ollama, para los demás usamos la hardcoded (o env)
+        let api_url: String = Input::with_theme(&ColorfulTheme::default())
+            .with_prompt(format!("URL de la API para {}", provider.as_str()))
+            .default(env_url.unwrap_or(default_url))
+            .interact_text()
+            .into_diagnostic()?;
+
+        let api_key: String = if provider == crate::config::AIProvider::Ollama {
+            Input::with_theme(&ColorfulTheme::default())
+                .with_prompt("API Key (opcional para Ollama)")
+                .allow_empty(true)
+                .default(env_key.unwrap_or_else(|| String::new()))
+                .interact_text()
+                .into_diagnostic()?
+        } else {
+            Input::with_theme(&ColorfulTheme::default())
+                .with_prompt(format!("API Key para {}", provider.as_str()))
+                .default(env_key.unwrap_or_else(|| String::new()))
+                .interact_text()
+                .into_diagnostic()?
+        };
+
+        // Obtener modelos dinámicamente usando los curls
+        println!(
+            "🔍 Conectando con {} para obtener modelos...",
+            provider.as_str()
+        );
+        let model: String =
+            match crate::ai::obtener_modelos_disponibles(&provider, &api_url, &api_key) {
+                Ok(mut models) if !models.is_empty() => {
+                    models.sort();
+                    let selection = Select::with_theme(&ColorfulTheme::default())
+                        .with_prompt("Selecciona el modelo")
+                        .items(&models)
+                        .default(0)
+                        .interact()
+                        .into_diagnostic()?;
+                    models[selection].clone()
+                }
+                Err(e) => {
+                    println!(
+                        "⚠️  No se pudieron obtener los modelos automáticamente: {}",
+                        e
+                    );
+                    Input::with_theme(&ColorfulTheme::default())
+                    .with_prompt(
+                        "Ingresa el nombre del modelo manualmente (ej: claude-3-5-sonnet-20241022)",
+                    )
+                    .interact_text()
+                    .into_diagnostic()?
+                }
+                _ => {
+                    println!("⚠️  La lista de modelos está vacía.");
+                    Input::with_theme(&ColorfulTheme::default())
+                        .with_prompt("Ingresa el nombre del modelo manualmente")
+                        .interact_text()
+                        .into_diagnostic()?
+                }
+            };
+
+        configs.push(crate::config::AIConfig {
+            name,
+            provider,
+            api_url,
+            api_key,
+            model,
+        });
+
+        println!("✅ Configuración añadida.");
+
+        let add_another = dialoguer::Confirm::with_theme(&ColorfulTheme::default())
+            .with_prompt("¿Deseas agregar otro modelo de IA?")
+            .default(false)
+            .interact()
+            .into_diagnostic()?;
+
+        if !add_another {
+            break;
+        }
+    }
+
+    Ok(configs)
 }
 
 /// Permite al usuario elegir qué reglas de las sugeridas por la IA desea aplicar.

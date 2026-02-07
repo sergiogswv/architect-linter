@@ -1,5 +1,6 @@
 {
+  "provider": "Claude",
   "api_url": "https://api.anthropic.com",
   "api_key": "sk-ant-api03-...",
-  "model": "claude-sonnet-4-5-20250929"
+  "model": "claude-3-7-sonnet-20250219"
 }
