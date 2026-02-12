@@ -119,6 +119,7 @@ fn default_ignored_paths() -> Vec<String> {
         "__pycache__/".to_string(),   // Python
         ".vscode/".to_string(),       // VSCode
         ".idea/".to_string(),         // IntelliJ
+        ".claude/".to_string(),       // Claude Code configuration
     ]
 }
 
@@ -514,6 +515,7 @@ pub fn get_framework_ignored_paths(framework: &Framework) -> Vec<String> {
         "coverage/".to_string(),
         ".vscode/".to_string(),
         ".idea/".to_string(),
+        ".claude/".to_string(),
     ];
 
     match framework {
